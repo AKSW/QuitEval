@@ -1,0 +1,11 @@
+@base <http://quit.aksw.org/> .
+@prefix conf: <http://my.quit.conf/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+conf:store a <YourQuitStore> ;
+    <pathOfGitRepo> "." . # Set the path to the repository that contains the files .
+
+conf:example a <Graph> ; # Define a Graph resource for a named graph
+    <graphUri> <urn:bsbm> ; # Set the URI of named graph
+    <isVersioned> 1 ; # Defaults to True, future work
+    <hasQuadFile> "graph.nq" . # Set the filename
