@@ -15,6 +15,7 @@ run_store () {
     PARAM=$1
     quit-store $PARAM &
     storePID=$!
+    echo "store in run_store:" $storePID
     return $storePID
 }
 
@@ -57,6 +58,7 @@ git add .gitattributes config.ttl graph.nq
 git commit -m "init graph"
 git tag init-graph
 
+#for bash: export storePID
 run_store $PARAMS
 storePID=$?
 echo "store: " $storePID
@@ -65,9 +67,10 @@ cd ..
 
 sleep 10
 
-run_monitor $RUNDIR $LOGDIR $storePID &
-watchPID=$!
-echo "watch: " $watchPID
+run_monitor $RUNDIR $LOGDIR $storePID & monitorPID=$!
+echo "monitor: " $monitorPID
+
+jobs -l
 
 sleep 10
 
@@ -77,4 +80,9 @@ sleep 10
 
 terminate $storePID
 
-exit 0
+jobs -l
+
+#kill %run_monitor
+kill $monitorPID
+
+sleep 2
