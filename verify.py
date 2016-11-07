@@ -67,6 +67,9 @@ def forwardAndVerifyStores (repo, store, updateStrings):
     return None
 
 if __name__ == "__main__":
+    """
+    This script verifies a quit repository agains the query log executed on the store
+    """
 
     argparser = argparse.ArgumentParser()
     argparser.add_argument('querylog', type=str)

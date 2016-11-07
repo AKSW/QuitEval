@@ -43,6 +43,10 @@ def align (quitrepo, resourcelog, runlog):
         print(str(int(values[0])-offset), values[1], values[2], countCommits)
 
 if __name__ == "__main__":
+    """
+    This script aligns the number of commits  with the resourcelog (mem_…-file) using the run log produced by the BSBM.
+    It outputs the (mem_…-file) with a 4th column containing the number of commits.
+    """
 
     argparser = argparse.ArgumentParser()
     argparser.add_argument('--align', action='store_true')

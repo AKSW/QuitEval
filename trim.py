@@ -3,6 +3,9 @@
 import argparse
 
 if __name__ == "__main__":
+    """
+    This script trims the number of triple pattern to be executed in a query to a maximum of 289
+    """
 
     parser = argparse.ArgumentParser()
     parser.add_argument('input', type=str)

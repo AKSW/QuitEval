@@ -99,6 +99,9 @@ def doMerges (quitrepo, dataset, seed, resultPath):
 
 
 if __name__ == "__main__":
+    """
+    This script executes a bunch of merges on a quit repository and verifies the correctness of the merge result.
+    """
 
     argparser = argparse.ArgumentParser()
     argparser.add_argument('quitrepo', type=str)
