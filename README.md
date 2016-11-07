@@ -1,5 +1,7 @@
 # Reproduce
 
+The quit store should be on commit 7aae256b2f8f41ae7ac4da363a8511aee43d9f24
+
 ## BSBM named graph handling
 
 To correctly write the data to the named graph, we have added the graph pattern to `queries/update/query1.txt` and `queries/update/query2.txt`:
