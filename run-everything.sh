@@ -13,7 +13,12 @@ echo "group is: "$PGID
 # Ctrl-C trap. Catches INT signal
 trap "kill_group $PGID; exit 0" INT
 
-for i in "01" "02" "03" "04" "05" "06" "07" "08" "09" "10" ;
+if [ -n "$1" ]; then start=$1; else start=1 ; fi
+if [ -n "$2" ]; then end=$2; else end=10; fi
+
+echo `seq -w $start $end`
+
+for i in `seq -w $start $end` ;
 do
     export i
 
