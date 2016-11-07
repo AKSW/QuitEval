@@ -12,8 +12,9 @@ run_monitor () {
 }
 
 run_store () {
-    PARAM=$1
-    quit-store $PARAM &
+    PARAMS=$@
+    echo "run store with params:" $PARAMS
+    quit-store $PARAMS &
     storePID=$!
     echo "store in run_store:" $storePID
     return $storePID
@@ -43,17 +44,25 @@ terminate () {
 #trap 'kill $(jobs -p)' EXIT SIGINT
 #trap "terminate $storePID $watchPID; exit 0" INT
 
-RUNDIR="quit"$PARAMS"-"$i
+PARAMS=$@
+
+DIR_PARAMS=""
+for var in "$PARAMS"
+do
+    DIR_PARAMS=$DIR_PARAMS"$var"
+done
+
+RUNDIR="quit"$DIR_PARAMS"-"$i
 LOGDIR=$RUNDIR"-logs"
 
 mkdir $RUNDIR
 mkdir $LOGDIR
 git init $RUNDIR
-git config gc.auto 256
 cp stuff/.gitattributes $RUNDIR/
 cp stuff/config.ttl $RUNDIR/
 sed "s/.$/<urn:bsbm> ./g" ../bsbmtools-0.2/dataset.nt | sort -u > $RUNDIR/graph.nq
 cd $RUNDIR
+git config gc.auto 256
 git add .gitattributes config.ttl graph.nq
 git commit -m "init graph"
 git tag init-graph
