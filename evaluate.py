@@ -31,13 +31,7 @@ queryLabels = {
 14: "Explore 12"
 }
 
-def getQPS (directory):
-    """
-    Extract gps and QMpH from bsbm result XML, calculate average and standard deviation
-    """
-    lines = {}
-    qmps = {}
-
+def findRuns (directory):
     files = glob.glob(os.path.join(directory, "quit-*"))
     print ("I could find the following run files: ", files)
 
@@ -65,8 +59,14 @@ def getQPS (directory):
             else:
                 runsHalf.add(runName)
 
-
     print("I've identified the following runs:", runs)
+    return runs
+
+def getQPS (directory):
+    """
+    Extract gps and QMpH from bsbm result XML, calculate average and standard deviation
+    """
+    runs = findRuns(directory)
 
     execSet = []
     qmph = []
@@ -203,6 +203,25 @@ def alignCommits (run):
         values = line.split()
         print(str(int(values[0])-offset), values[1], values[2], countCommits)
 
+def plotForMem (directory):
+    runs = findRuns(directory)
+
+    # https://stackoverflow.com/questions/1241029/how-to-filter-a-dictionary-by-value#1241354
+    # covert runs to list sorted by setup value
+    runs = sorted(runs.items(), key=lambda x:x[1]["setup"] if x[1]["setup"] else "")
+    # group runs by setup value
+    groupedRuns = itertools.groupby(runs, key=lambda x:x[1]["setup"])
+
+    for key, group in groupedRuns:
+        runGroup = dict(group)
+        for runName, runProperties in runGroup.items():
+            fileName = os.path.join(directory, runName + "-logs", "mem-" + runName)
+            with open(fileName) as memlogFile:
+                list(memlogFile)
+                # decide, where to align and
+                # write plat points to common structure
+
+
 if __name__ == "__main__":
     """
     This script aligns the number of commits  with the resourcelog (mem_…-file) using the run log produced by the BSBM.
@@ -210,15 +229,17 @@ if __name__ == "__main__":
     """
 
     argparser = argparse.ArgumentParser()
+    argparser.add_argument('--mem', action='store_true')
     argparser.add_argument('--bsbm', action='store_true')
     argparser.add_argument('--align', action='store_true')
     argparser.add_argument('directory', default=".", nargs='?', type=str)
 
     args = argparser.parse_args()
 
-    if args.bsbm:
-        #
+    if args.mem:
+        plotForMem(args.directory)
+    elif args.bsbm:
         getQPS(args.directory)
-    if args.align:
+    elif args.align:
         # directory in this case is a specific quit run repo
         alignCommits(args.directory)
