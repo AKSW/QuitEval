@@ -68,4 +68,5 @@ and these lines to a `.gitattributes` file in a git repository:
 
 # Formate results for gnuplot
 
-The scripts `./watch.py` and `./bsbm.py` help in this case.
+The scripts `./evaluate.py` help in this case.
+If you don't have GitPython installed you can use `pip install -r requirements.txt`.
