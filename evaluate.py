@@ -7,6 +7,13 @@ import itertools
 import collections
 import math
 
+import argparse
+import git
+import time
+import datetime
+
+import os
+
 queryLabels = {
 1: "INSERT DATA",
 2: "DELETE WHERE",
@@ -24,28 +31,28 @@ queryLabels = {
 14: "Explore 12"
 }
 
-def getQPS ():
+def getQPS (directory):
     """
-    Extract gps and QMpH from bsbm result XML
+    Extract gps and QMpH from bsbm result XML, calculate average and standard deviation
     """
     lines = {}
     qmps = {}
 
-    files = glob.glob("quit-*")
+    files = glob.glob(os.path.join(directory, "quit-*"))
     print ("I could find the following run files: ", files)
 
-    runPattern = re.compile('^quit(?P<setup>-gc|-nv)?(?P<number>-[0-9]*)(?P<logs>-logs)?$')
+    runPattern = re.compile('quit(?P<setup>-gc|-nv)?(?P<number>-[0-9]*)(?P<logs>-logs)?$')
 
     # this is just for checking, if there is a logs folder for each run
     runs = {}
     runsHalf = set()
     for file in files:
-        match = runPattern.match(file)
+        match = runPattern.match(os.path.basename(file))
         if match:
             if match.group("logs"):
-                runName = file[:-5]
+                runName = os.path.basename(file)[:-5]
             else:
-                runName = file
+                runName = os.path.basename(file)
 
             if (runName in runsHalf):
                 runsHalf.remove(runName)
@@ -64,7 +71,7 @@ def getQPS ():
     execSet = []
     qmph = []
     for runName, runProperties in runs.items():
-        fileName = runName + "-logs/" + runName + ".xml"
+        fileName = os.path.join(directory, runName + "-logs", runName + ".xml")
 
         e = xml.etree.ElementTree.parse(fileName).getroot()
         subset = {}
@@ -77,7 +84,7 @@ def getQPS ():
                 subset[int(nr)] = float(qu.find('qps').text)
         runProperties["queries"] = subset
 
-    print("I've identified the following runs:", runs)
+    print("I've identified the following values for the runs:", runs)
 
     # https://stackoverflow.com/questions/1241029/how-to-filter-a-dictionary-by-value#1241354
     # covert runs to list sorted by setup value
@@ -130,7 +137,7 @@ def getQPS ():
 
         setup["setup"] = setupOptions
         setup["runs"] = len(runGroup)
-        print("this setup is:", setup)
+        #print("this setup is:", setup)
         setups[setupOptions] = setup
 
     setups = collections.OrderedDict(sorted(setups.items(), key=lambda x:x[0] if x[0] else ""))
@@ -155,6 +162,63 @@ def getQPS ():
             print(numbers[id][1], numbers[id][2], end="\t")
         print()
 
-if __name__ == "__main__":
+def alignCommits (run):
+    """
+    This method adds another column to the resource/memory log, containing the number of commits
+    The original input already contains the three columns "timestamp", "repo size", "memory consumption"
+    """
 
-    getQPS()
+    offset = 0
+    with open(os.path.join(run + "-logs", run + "-run.log"), 'r') as runlogFile:
+        firstLine = runlogFile.readline()
+        s = " ".join(firstLine.split()[0:2])
+        offset = int(time.mktime(datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S,%f").timetuple()))
+
+    resourcelog = open(os.path.join(run + "-logs", "mem-" + run), 'r')
+    repo = git.Repo(run)
+    log = repo.git.log('--date=raw', '--pretty=format:%cd')
+    # | awk '{ print $1 }'
+
+    print("time", "reposize", "mem", "countCommits")
+
+    log = list(e.split()[0] for e in log.split("\n"))
+
+    countCommits = 1
+    logPop = int(log.pop())
+    for line in list(resourcelog):
+        date = line.split()[0]
+        #if not isinstance(date, int):
+        if date == "time":
+            print(line.strip(), "\"count of commits\"")
+            continue
+        #print(int(date), ">", logPop)
+        while (int(date) > logPop):
+            if log:
+                logPop = int(log.pop())
+                countCommits += 1
+                #print(int(date), ">", logPop)
+                #print(countCommits, date)
+            else:
+                break
+        values = line.split()
+        print(str(int(values[0])-offset), values[1], values[2], countCommits)
+
+if __name__ == "__main__":
+    """
+    This script aligns the number of commits  with the resourcelog (mem_…-file) using the run log produced by the BSBM.
+    It outputs the (mem_…-file) with a 4th column containing the number of commits.
+    """
+
+    argparser = argparse.ArgumentParser()
+    argparser.add_argument('--bsbm', action='store_true')
+    argparser.add_argument('--align', action='store_true')
+    argparser.add_argument('directory', default=".", nargs='?', type=str)
+
+    args = argparser.parse_args()
+
+    if args.bsbm:
+        #
+        getQPS(args.directory)
+    if args.align:
+        # directory in this case is a specific quit run repo
+        alignCommits(args.directory)
