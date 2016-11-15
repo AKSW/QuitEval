@@ -1,3 +1,15 @@
+# Results
+
+This was a run on a laptop with:
+* CPU: Intel Core i7-5600U, 2.6GHz, two physical cores (4 virtual cores)
+* SSD: SAMSUNG MZ7LN512HCHP-000L1, 476.94GiB
+* RAM 15.4GiB, 1600M Hz
+* OS: Debian GNU/Linux 8 (jessie) 64-Bit
+
+I've ran the bsbm with 40 warmup runs and 1500 querymix runs
+
+[![](figures/mem.png)](figures/mem.pdf)
+
 # Reproduce
 
 The quit store should be on commit 7aae256b2f8f41ae7ac4da363a8511aee43d9f24
