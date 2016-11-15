@@ -162,20 +162,21 @@ def getQPS (directory):
             print(numbers[id][1], numbers[id][2], end="\t")
         print()
 
-def alignCommits (run):
+def alignCommits (runDir):
     """
     This method adds another column to the resource/memory log, containing the number of commits
     The original input already contains the three columns "timestamp", "repo size", "memory consumption"
     """
 
     offset = 0
-    with open(os.path.join(run + "-logs", run + "-run.log"), 'r') as runlogFile:
+    run = os.path.basename(runDir)
+    with open(os.path.join(runDir + "-logs", run + "-run.log"), 'r') as runlogFile:
         firstLine = runlogFile.readline()
         s = " ".join(firstLine.split()[0:2])
         offset = int(time.mktime(datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S,%f").timetuple()))
 
-    resourcelog = open(os.path.join(run + "-logs", "mem-" + run), 'r')
-    repo = git.Repo(run)
+    resourcelog = open(os.path.join(runDir + "-logs", "mem-" + run), 'r')
+    repo = git.Repo(runDir)
     log = repo.git.log('--date=raw', '--pretty=format:%cd')
     # | awk '{ print $1 }'
 
@@ -214,12 +215,15 @@ def plotForMem (directory):
 
     for key, group in groupedRuns:
         runGroup = dict(group)
+        setup = {}
         for runName, runProperties in runGroup.items():
             fileName = os.path.join(directory, runName + "-logs", "mem-" + runName)
             with open(fileName) as memlogFile:
-                list(memlogFile)
+                memlog = list(memlogFile)
+                for line in memlog:
+                    print(line.split())
                 # decide, where to align and
-                # write plat points to common structure
+                # write plot points to common structure
 
 
 if __name__ == "__main__":
@@ -243,3 +247,5 @@ if __name__ == "__main__":
     elif args.align:
         # directory in this case is a specific quit run repo
         alignCommits(args.directory)
+    else:
+        argparser.print_help()
