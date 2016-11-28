@@ -30,6 +30,11 @@ def compareSets(right, left):
             sys.stdout.write("- " + a)
         return False
 
+def getNextCommit ():
+    ancestryPath = repo.git.log('--reverse', '--ancestry-path', '--pretty=format:"%h"', str(repo.head.commit)+'..master')
+    ancestryPath = ancestryPath.split("\n")
+    return ancestryPath[0].strip("\"")
+
 def forwardAndVerifyStores (repo, store, updateStrings):
 
     try:
@@ -43,9 +48,7 @@ def forwardAndVerifyStores (repo, store, updateStrings):
             f = store.serialize(format="nquads").decode("utf-8")
 
             print ("currently on commit", repo.head.commit)
-            ancestryPath = repo.git.log('--reverse', '--ancestry-path', '--pretty=format:"%h"', str(repo.head.commit)+'..master')
-            ancestryPath = ancestryPath.split("\n")
-            nextcommit = ancestryPath[0].strip("\"")
+            nextcommit = getNextCommit()
             print("checking out", nextcommit)
             repo.git.checkout(nextcommit)
 
