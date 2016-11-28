@@ -156,7 +156,7 @@ def getQPS (directory):
         print(setup, end="\t")
     print()
     for id, label in queryLabels.items():
-        print(label, end="\t")
+        print('"' + label + '"', end="\t")
         for numbers in setups.values():
             #print(numbers)
             print(numbers[id][1], numbers[id][2], end="\t")
