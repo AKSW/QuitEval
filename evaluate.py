@@ -31,11 +31,18 @@ queryLabels = {
 14: "Explore 12"
 }
 
+setupLabels = {
+None: "quit versioning",
+"-gc": "quit versioning with gc",
+"-nv": "no versioning (baseline)",
+"-pygit2": "next quit with pygit2"
+}
+
 def findRuns (directory):
     files = glob.glob(os.path.join(directory, "quit-*"))
     print ("I could find the following run files: ", files)
 
-    runPattern = re.compile('quit(?P<setup>-gc|-nv)?(?P<number>-[0-9]*)(?P<logs>-logs)?$')
+    runPattern = re.compile('quit(?P<setup>-gc|-nv|-pygit2)?(?P<number>-[0-9]*)(?P<logs>-logs)?$')
 
     # this is just for checking, if there is a logs folder for each run
     runs = {}
@@ -143,7 +150,9 @@ def getQPS (directory):
     setups = collections.OrderedDict(sorted(setups.items(), key=lambda x:x[0] if x[0] else ""))
     print ("QMpH")
     for setup in setups.keys():
-        print(setup, end="\t")
+        setupLabel = setupLabels[setup]
+        print('"' + setupLabel+ '"', end="\t")
+        print('"' + setupLabel+ '"', end="\t")
     print()
     for numbers in setups.values():
         #print(numbers)
@@ -153,7 +162,9 @@ def getQPS (directory):
     print ("Queries")
     print("labels", end="\t")
     for setup in setups.keys():
-        print(setup, end="\t")
+        setupLabel = setupLabels[setup]
+        print('"' + setupLabel+ '"', end="\t")
+        print('"' + setupLabel+ '"', end="\t")
     print()
     for id, label in queryLabels.items():
         print('"' + label + '"', end="\t")
