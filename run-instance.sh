@@ -14,7 +14,7 @@ run_monitor () {
 run_store () {
     PARAMS=$@
     echo "run store with params:" $PARAMS
-    quit-store $PARAMS &
+    quit-store --pathspec $PARAMS &
     storePID=$!
     echo "store in run_store:" $storePID
     return $storePID
@@ -25,7 +25,7 @@ run_bsbm () {
     LOGDIR=$2
 
     cd ../bsbmtools-0.2/
-    ./testdriver http://localhost:5000/sparql -runs 200 -w 40 -dg "urn:bsbm" -o ../quit-eval/$LOGDIR/$RUNDIR.xml -ucf usecases/exploreAndUpdate/sparql.txt -udataset dataset_update.nt -u http://localhost:5000/sparql
+    ./testdriver http://localhost:5000/sparql -runs 1500 -w 40 -dg "urn:bsbm" -o ../quit-eval/$LOGDIR/$RUNDIR.xml -ucf usecases/exploreAndUpdate/sparql.txt -udataset dataset_update.nt -u http://localhost:5000/sparql
     cp run.log ../quit-eval/$LOGDIR/$RUNDIR-run.log
     cd ../quit-eval/
 }

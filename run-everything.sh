@@ -22,12 +22,14 @@ for i in `seq -w $start $end` ;
 do
     export i
 
+    # --garbagecollection
+    ./run-instance.sh -gc
+    pgrep -g $PGID | xargs --no-run-if-empty ps fp;
+
     ./run-instance.sh
     pgrep -g $PGID | xargs --no-run-if-empty ps fp;
 
+    # --disableversioning
     ./run-instance.sh -nv
-    pgrep -g $PGID | xargs --no-run-if-empty ps fp;
-
-    ./run-instance.sh -gc
     pgrep -g $PGID | xargs --no-run-if-empty ps fp;
 done
