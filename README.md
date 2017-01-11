@@ -80,5 +80,16 @@ and these lines to a `.gitattributes` file in a git repository:
 
 # Formate results for gnuplot
 
-The scripts `./evaluate.py` help in this case.
+The script `./evaluate.py` helps in this case.
+
+For generating the output regarding QMpH and QpS run
+
+    ./evaluate.py --bsbm
+
+For aligning the memory log of the run with the number of commits at this point in time run:
+
+    ./evaluate.py --align <name of the run> > <name of the run>.dat
+
+Where `<name of the run>` is the directory name of the respective run without the `-log` suffix. E.g. `quit-gc-2`.
+
 If you don't have GitPython installed you can use `pip install -r requirements.txt`.
