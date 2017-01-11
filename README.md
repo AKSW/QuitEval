@@ -36,10 +36,14 @@ Create BSBM datasets
     # Run inside the bsbmtools-0.2 directory
     ./generate -pc 1000 -ud -tc 1000 -ppt 1
 
-Due to the configured python maximum recursion depth, which is exceeded in the RDFlib query parser, we have to post process the generated update dataset and truncated each of the products to 289 statements. (This clearly breaks rule 4 in section 2 of the benchmark rules provided with the BSBM 14 but appropriate for the proof of concept in our eyes and since the data generator doesn't provide the necessary options.)
+Due to the configured python maximum recursion depth of `1000`, which is exceeded in the RDFlib query parser, we have to post process the generated update dataset and truncated each of the products to 289 statements. (This clearly breaks rule 4 in section 2 of the benchmark rules provided with the BSBM 14 but appropriate for the proof of concept in our eyes and since the data generator doesn't provide the necessary options.)
 
     ./trim.py ../bsbmtools-0.2/dataset_update.nt dataset_update_trimmed.nt
     mv dataset_update_trimmed.nt ../bsbmtools-0.2/dataset_update.nt
+
+This should not be needed if the recursion depth is increases accordingly, e.g.
+
+    sys.setrecursionlimit(2 ** 15)
 
 Start the testruns
 
