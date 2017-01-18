@@ -1,0 +1,44 @@
+# install dependencies and global configuration
+sudo apt-get update
+sudo apt-get install vim unzip git htop screen \
+                     openjdk-8-jre \
+                     python3-pip python3-virtualenv libgit2-24 python3-pygit2 python3-rdflib python3-flask python3-flask-api
+
+pip3 install virtualenvwrapper
+VIRTUALENVWRAPPER_PYTHON=/usr/bin/python3.5
+# maybe there is something missing to configure the virtualenvwrapper
+source $HOME/.local/bin/virtualenvwrapper.sh
+mkvirtualenv -p /usr/bin/python3.5 quit
+workon quit
+toggleglobalsitepackages
+
+git config --global user.email "me@bench"
+git config --global user.name "My Name"
+
+# get quit tools and bsbm
+git clone https://github.com/AKSW/QuitStore.git
+git clone https://github.com/AKSW/QuitEval.git
+wget -O bsbmtools-v0.2.zip "https://downloads.sourceforge.net/project/bsbmtools/bsbmtools/bsbmtools-0.2/bsbmtools-v0.2.zip"
+unzip bsbmtools-v0.2.zip
+cd $HOME/bsbmtools-0.2/
+patch -p1 < $HOME/QuitEval/bsbm-queries.patch
+cd $HOME
+
+# add quit store to the path
+mkdir bin
+cd bin/
+ln -s $HOME/QuitStore/quit/quit.py quit-store
+
+# install python dependencies
+cd $HOME/QuitStore/
+# maybe edit requirements and remove pygit2 since it is already installed globally
+pip install -r requirements.txt
+cd $HOME/QuitEval/
+pip install -r requirements.txt
+
+cd $HOME/bsbmtools-0.2/
+patch -p1 < ../QuitEval/bsbm-queries.patch
+./generate -pc 500 -ud -tc 500 -ppt 1
+
+cd $HOME/QuitEval/
+i=1 ./run-instance.sh
