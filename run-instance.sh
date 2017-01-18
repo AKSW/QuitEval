@@ -4,7 +4,7 @@ prepare_repository () {
     REPOSITORY=$1
     git init $REPOSITORY
     cp stuff/.gitattributes $REPOSITORY/
-    sed "s/.$/<urn:bsbm> ./g" ../bsbmtools-0.2/dataset.nt | sort -u > $REPOSITORY/graph.nq
+    sed "s/.$/<urn:bsbm> ./g" $BSBM_DIR/dataset.nt | sort -nu > $REPOSITORY/graph.nq
     cd $REPOSITORY
     git add .gitattributes graph.nq
     git commit -m "init graph"
@@ -50,10 +50,10 @@ run_bsbm () {
     RUNDIR=$1
     LOGDIR=$2
 
-    cd ../bsbmtools-0.2/
-    ./testdriver http://localhost:5000/sparql -runs 1500 -w 40 -dg "urn:bsbm" -o ../quit-eval/$LOGDIR/$RUNDIR.xml -ucf usecases/exploreAndUpdate/sparql.txt -udataset dataset_update.nt -u http://localhost:5000/sparql
-    cp run.log ../quit-eval/$LOGDIR/$RUNDIR-run.log
-    cd ../quit-eval/
+    cd $BSBM_DIR
+    ./testdriver http://localhost:5000/sparql -runs 1500 -w 40 -dg "urn:bsbm" -o $QUIT_EVAL_DIR/$LOGDIR/$RUNDIR.xml -ucf usecases/exploreAndUpdate/sparql.txt -udataset dataset_update.nt -u http://localhost:5000/sparql
+    cp run.log $QUIT_EVAL_DIR/$LOGDIR/$RUNDIR-run.log
+    cd $QUIT_EVAL_DIR
 }
 
 terminate () {
@@ -72,7 +72,22 @@ terminate () {
 
 PARAMS=$@
 
-BARE=true
+BARE=false
+
+if [ -z ${QUIT_EVAL_DIR+x} ]; then
+    QUIT_EVAL_DIR=$(pwd)
+    echo "QUIT_EVAL_DIR: "$QUIT_EVAL_DIR
+fi
+
+if [ -z ${BSBM_DIR+x} ]; then
+    if [ -d "../bsbmtools-0.2/" ]; then
+        BSBM_DIR=$(realpath ../bsbmtools-0.2/)
+        echo "BSBM_DIR: "$BSBM_DIR
+    else
+        (>&2 echo "Could not find bsbm under "$(realpath ../bsbmtools-0.2/))
+        exit 1
+    fi
+fi
 
 DIR_PARAMS=""
 for var in "$PARAMS"
