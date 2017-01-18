@@ -35,14 +35,16 @@ setupLabels = {
 None: "quit versioning",
 "-gc": "quit versioning with gc",
 "-nv": "no versioning (baseline)",
-"-pygit2": "next quit with pygit2"
+"-pygit2": "next quit with pygit2",
+"-bare": "bare repo",
+"-nonbare": "non bare repo"
 }
 
 def findRuns (directory):
     files = glob.glob(os.path.join(directory, "quit-*"))
     print ("I could find the following run files: ", files)
 
-    runPattern = re.compile('quit(?P<setup>-gc|-nv|-pygit2)?(?P<number>-[0-9]*)(?P<logs>-logs)?$')
+    runPattern = re.compile('quit(?P<setup>-gc|-nv|-pygit2|-bare|-nonbare)?(?P<number>-[0-9]*)(?P<logs>-logs)?$')
 
     # this is just for checking, if there is a logs folder for each run
     runs = {}
@@ -215,6 +217,55 @@ def alignCommits (runDir):
         values = line.split()
         print(str(int(values[0])-offset), values[1], values[2], countCommits)
 
+def alignAddDelete (runDir):
+    """
+    This method adds another column to the resource/memory log, containing the number of added and removed lines per commit
+    The original input already contains the three columns "timestamp", "repo size", "memory consumption"
+    TODO: there might also be some option neccessary, which defines the width of the sliding window
+    """
+
+    offset = 0
+    run = os.path.basename(runDir)
+    with open(os.path.join(runDir + "-logs", run + "-run.log"), 'r') as runlogFile:
+        firstLine = runlogFile.readline()
+        s = " ".join(firstLine.split()[0:2])
+        offset = int(time.mktime(datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S,%f").timetuple()))
+
+    resourcelog = open(os.path.join(runDir + "-logs", "mem-" + run), 'r')
+    repo = git.Repo(runDir)
+    log = repo.git.log('--date=raw', '--pretty=format:%cd', '--numstat')
+
+    print("time", "reposize", "mem", "countCommits", "countStatements", "countAdd", "countDelete")
+
+    log = list(e.split() for e in log.split("\n\n"))
+
+    countCommits = 1
+    logPop = log.pop()
+    countStatements = 0
+    for line in list(resourcelog):
+        date = line.split()[0]
+        # print title line
+        if date == "time":
+            print(line.strip(), "\"count of commits\"")
+            continue
+        values = line.split()
+        if int(date) > int(logPop[0]):
+            while (int(date) > int(logPop[0])):
+                if log:
+                    countCommits += 1
+                    countAdd = int(logPop[2])
+                    countDelete = int(logPop[3])
+                    countStatements -= countDelete
+                    countStatements += countAdd
+                    print(str(int(values[0])-offset), values[1], values[2], countCommits, countStatements, countAdd, countDelete)
+                    logPop = log.pop()
+                    #print(int(date), ">", logPop)
+                    #print(countCommits, date)
+                else:
+                    break
+        else:
+            print(str(int(values[0])-offset), values[1], values[2], countCommits, countStatements, countAdd, countDelete)
+
 def plotForMem (directory):
     runs = findRuns(directory)
 
@@ -247,6 +298,7 @@ if __name__ == "__main__":
     argparser.add_argument('--mem', action='store_true')
     argparser.add_argument('--bsbm', action='store_true')
     argparser.add_argument('--align', action='store_true')
+    argparser.add_argument('--alignAD', action='store_true')
     argparser.add_argument('directory', default=".", nargs='?', type=str)
 
     args = argparser.parse_args()
@@ -258,5 +310,8 @@ if __name__ == "__main__":
     elif args.align:
         # directory in this case is a specific quit run repo
         alignCommits(args.directory)
+    elif args.alignAD:
+        # directory in this case is a specific quit run repo
+        alignAddDelete(args.directory)
     else:
         argparser.print_help()
