@@ -242,6 +242,8 @@ def alignAddDelete (runDir):
     countCommits = 1
     logPop = log.pop()
     countStatements = 0
+    countAdd = 0
+    countDelete = 0
     for line in list(resourcelog):
         date = line.split()[0]
         # print title line
