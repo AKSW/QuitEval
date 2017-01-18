@@ -12,7 +12,7 @@ I've ran the bsbm with 40 warmup runs and 1500 querymix runs
 
 # Reproduce
 
-The quit store should be on commit 7aae256b2f8f41ae7ac4da363a8511aee43d9f24
+The quit store should be on commit 7aae256b2f8f41ae7ac4da363a8511aee43d9f24 to reproduce the result as printed above.
 
 ## BSBM named graph handling
 
@@ -25,7 +25,11 @@ To correctly write the data to the named graph, we have added the graph pattern 
     DELETE WHERE
     { GRAPH <urn:bsbm> { %Offer% ?p ?o } }
 
-TODO: we should check if this is realy needed, or if we can correctly evaluate the URL parameter sent by the testdriver
+This can be done by changing to the bsbm directory and running
+
+    patch -p1 < <quit-eval directory>/bsbm-queries.patch
+
+TODO: we should check if this is really needed, or if we can correctly evaluate the URL parameter sent by the testdriver
 
 ## Setup data and monitor execution
 
@@ -35,15 +39,6 @@ Create BSBM datasets
 
     # Run inside the bsbmtools-0.2 directory
     ./generate -pc 1000 -ud -tc 1000 -ppt 1
-
-Due to the configured python maximum recursion depth of `1000`, which is exceeded in the RDFlib query parser, we have to post process the generated update dataset and truncated each of the products to 289 statements. (This clearly breaks rule 4 in section 2 of the benchmark rules provided with the BSBM 14 but appropriate for the proof of concept in our eyes and since the data generator doesn't provide the necessary options.)
-
-    ./trim.py ../bsbmtools-0.2/dataset_update.nt dataset_update_trimmed.nt
-    mv dataset_update_trimmed.nt ../bsbmtools-0.2/dataset_update.nt
-
-This should not be needed if the recursion depth is increases accordingly, e.g.
-
-    sys.setrecursionlimit(2 ** 15)
 
 Start the testruns
 
@@ -55,7 +50,7 @@ reset the repository to the initial commit
 
     git reset --hard init-graph
 
-    sed "s/.$/<urn:bsbm> ./g" ../bsbmtools-0.2/dataset.nt | sort -u > graph.nq
+    sed "s/.$/<urn:bsbm> ./g" ../bsbmtools-0.2/dataset.nt | LC_ALL=C sort -u > graph.nq
     ./verify.py <quit_repo>-log/run….log <quit_repo> graph.nq
 
 # Verification of the Merge strategy
