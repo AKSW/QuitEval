@@ -1,5 +1,31 @@
 #!/bin/sh
 
+prepare_repository () {
+    REPOSITORY=$1
+    git init $REPOSITORY
+    cp stuff/.gitattributes $REPOSITORY/
+    sed "s/.$/<urn:bsbm> ./g" ../bsbmtools-0.2/dataset.nt | sort -u > $REPOSITORY/graph.nq
+    cd $REPOSITORY
+    git add .gitattributes graph.nq
+    git commit -m "init graph"
+    git tag init-graph
+    cd ..
+}
+
+prepare_workingdirectory () {
+    RUNDIR=$1
+
+    cp stuff/config.ttl $RUNDIR/
+}
+
+prepare_workingdirectory_bare () {
+    REPOSITORY=$1
+    RUNDIR=$2
+
+    git clone --bare $REPOSITORY $RUNDIR
+    prepare_workingdirectory $RUNDIR
+}
+
 run_monitor () {
     RUNDIR=$1
     LOGDIR=$2
@@ -46,6 +72,8 @@ terminate () {
 
 PARAMS=$@
 
+BARE=true
+
 DIR_PARAMS=""
 for var in "$PARAMS"
 do
@@ -53,19 +81,33 @@ do
 done
 
 RUNDIR="quit"$DIR_PARAMS"-"$i
+
+if $BARE; then
+    RUNDIR_WD=$RUNDIR"_wd"
+else
+    RUNDIR_WD=$RUNDIR
+fi
+
 LOGDIR=$RUNDIR"-logs"
 
 mkdir $RUNDIR
+
+if $BARE; then
+    mkdir $RUNDIR_WD
+fi
+
 mkdir $LOGDIR
-git init $RUNDIR
-cp stuff/.gitattributes $RUNDIR/
-cp stuff/config.ttl $RUNDIR/
-sed "s/.$/<urn:bsbm> ./g" ../bsbmtools-0.2/dataset.nt | sort -u > $RUNDIR/graph.nq
+
+prepare_repository $RUNDIR_WD
+
+if $BARE; then
+    prepare_workingdirectory_bare $RUNDIR_WD $RUNDIR
+else
+    prepare_workingdirectory $RUNDIR
+fi
+
 cd $RUNDIR
 git config gc.auto 256
-git add .gitattributes config.ttl graph.nq
-git commit -m "init graph"
-git tag init-graph
 
 #for bash: export storePID
 run_store $PARAMS
