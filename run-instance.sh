@@ -4,7 +4,7 @@ prepare_repository () {
     REPOSITORY=$1
     git init $REPOSITORY
     cp stuff/.gitattributes $REPOSITORY/
-    sed "s/.$/<urn:bsbm> ./g" $BSBM_DIR/dataset.nt | sort -nu > $REPOSITORY/graph.nq
+    sed "s/.$/<urn:bsbm> ./g" $BSBM_DIR/dataset.nt | LC_ALL=C sort -u > $REPOSITORY/graph.nq
     cd $REPOSITORY
     git add .gitattributes graph.nq
     git commit -m "init graph"
