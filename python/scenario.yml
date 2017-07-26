@@ -1,0 +1,24 @@
+bsbmLocation: "../../bsbmtools-0.2/"
+quitExecutable: "quit-store"
+repetitions: 2
+bsbmRuns: 10
+bsbmWarmup: 5
+resultDirectory: "2017-07-25/"
+repositoryBasePath: "repo"
+logBasePath: "log"
+bareRepo: false
+
+scenarios:
+    - "withGC": {
+        storeArguments: "-gc"
+    }
+    - "woGC": {
+        storeArguments: ""
+    }
+    - "tmpFS": {
+        storeArguments: "",
+        repositoryBasePath: "/tmp/mnt/"
+    }
+    - "baseline": {
+        storeArguments: "-nv"
+    }
