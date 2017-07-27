@@ -31,6 +31,9 @@ queryLabels = {
 14: "Explore 12"
 }
 
+colors = ["#FF4A46", "#008941", "#006FA6", "#A30059", "#FFDBE5", "#7A4900", "#0000A6", "#63FFAC", "#B79762", "#004D43",
+          "#8FB0FF", "#997D87", "#5A0007", "#809693", "#FEFFE6", "#1B4400", "#4FC601", "#3B5DFF"]
+
 runPattern = re.compile('quit-(?P<setup>[^⁻]*)?(?P<number>-[0-9]*)$')
 
 def findRuns (directory):
@@ -63,7 +66,7 @@ def getQPS (directory):
     execSet = []
     qmph = []
     for runName, runProperties in runs.items():
-        fileName = os.path.join(directory, runName, "logs", runProperties["setup"] + ".xml")
+        fileName = os.path.join(directory, runName, "logs", runName + ".xml")
 
         e = xml.etree.ElementTree.parse(fileName).getroot()
         subset = {}
@@ -133,28 +136,34 @@ def getQPS (directory):
         setups[setupOptions] = setup
 
     setups = collections.OrderedDict(sorted(setups.items(), key=lambda x:x[0] if x[0] else ""))
+
+    bsbm_qmph_dat = ""
     print ("QMpH")
     for setup in setups.keys():
-        print('"' + setup + '"', end="\t")
-        print('"' + setup + '"', end="\t")
-    print()
+        bsbm_qmph_dat += "\"{}\" \"{}\"\t".format(setup, setup)
+    bsbm_qmph_dat += "\n"
     for numbers in setups.values():
         #print(numbers)
-        print(numbers["qmph"][1], numbers["qmph"][2], end="\t")
-    print()
-    print()
+        bsbm_qmph_dat += "{} {}\t".format(numbers["qmph"][1], numbers["qmph"][2])
+    bsbm_qmph_dat += "\n"
+
+    with open(os.path.join(directory, "bsbm_qmph.dat"), "w") as bsbm_qmph_dat_file:
+        bsbm_qmph_dat_file.write(bsbm_qmph_dat)
+
     print ("Queries")
-    print("labels", end="\t")
+    bsbm_dat = "labels\t"
     for setup in setups.keys():
-        print('"' + setup + '"', end="\t")
-        print('"' + setup + '"', end="\t")
-    print()
+        bsbm_dat += "\"{}\" \"{}\"\t".format(setup, setup)
+    bsbm_dat += "\n"
     for id, label in queryLabels.items():
-        print('"' + label + '"', end="\t")
+        bsbm_dat += "\"{}\"\t".format(label)
         for numbers in setups.values():
             #print(numbers)
-            print(numbers[id][1], numbers[id][2], end="\t")
-        print()
+            bsbm_dat += "{} {}\t".format(numbers[id][1], numbers[id][2])
+        bsbm_dat += "\n"
+
+    with open(os.path.join(directory, "bsbm.dat"), "w") as bsbm_dat_file:
+        bsbm_dat_file.write(bsbm_dat)
 
 def alignCommits (runDir):
     """
@@ -165,8 +174,7 @@ def alignCommits (runDir):
     offset = 0
     run = os.path.basename(runDir)
 
-    match = runPattern.match(run)
-    with open(os.path.join(runDir, "logs", match.group("setup") + "-run.log"), 'r') as runlogFile:
+    with open(os.path.join(runDir, "logs", runName + "-run.log"), 'r') as runlogFile:
         firstLine = runlogFile.readline()
         s = " ".join(firstLine.split()[0:2])
         offset = int(time.mktime(datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S,%f").timetuple()))

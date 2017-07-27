@@ -72,7 +72,7 @@ The script `./evaluate.py` helps in this case.
 
 For generating the output regarding QMpH and QpS run
 
-    ./evaluate.py --bsbm
+    ./evaluate.py --bsbm <directory with all scenarios>
 
 For aligning the memory log of the run with the number of commits at this point in time run:
 
