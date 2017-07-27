@@ -1,9 +1,9 @@
 bsbmLocation: "../../bsbmtools-0.2/"
 quitExecutable: "quit-store"
 repetitions: 2
-bsbmRuns: 50
+bsbmRuns: 100
 bsbmWarmup: 5
-resultDirectory: "2017-07-26_1/"
+resultDirectory: "2017-07-27_2/"
 repositoryBasePath: "repo"
 logBasePath: "log"
 bareRepo: false
