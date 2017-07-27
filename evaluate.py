@@ -31,42 +31,25 @@ queryLabels = {
 14: "Explore 12"
 }
 
-setupLabels = {
-None: "quit versioning",
-"-gc": "quit versioning with gc",
-"-nv": "no versioning (baseline)",
-"-pygit2": "next quit with pygit2",
-"-bare": "bare repo",
-"-nonbare": "non bare repo"
-}
+runPattern = re.compile('quit-(?P<setup>[^⁻]*)?(?P<number>-[0-9]*)$')
 
 def findRuns (directory):
     files = glob.glob(os.path.join(directory, "quit-*"))
     print ("I could find the following run files: ", files)
 
-    runPattern = re.compile('quit(?P<setup>-gc|-nv|-pygit2|-bare|-nonbare)?(?P<number>-[0-9]*)(?P<logs>-logs)?$')
-
     # this is just for checking, if there is a logs folder for each run
     runs = {}
-    runsHalf = set()
     for file in files:
         match = runPattern.match(os.path.basename(file))
         if match:
-            if match.group("logs"):
-                runName = os.path.basename(file)[:-5]
-            else:
-                runName = os.path.basename(file)
+            runName = os.path.basename(file)
 
-            if (runName in runsHalf):
-                runsHalf.remove(runName)
-                setup = match.group("setup")
-                runId = match.group("number")[1:]
-                runs[runName] = {
-                    "setup": setup,
-                    "runId": runId
-                }
-            else:
-                runsHalf.add(runName)
+            setup = match.group("setup")
+            runId = match.group("number")[1:]
+            runs[runName] = {
+                "setup": setup,
+                "runId": runId
+            }
 
     print("I've identified the following runs:", runs)
     return runs
@@ -80,7 +63,7 @@ def getQPS (directory):
     execSet = []
     qmph = []
     for runName, runProperties in runs.items():
-        fileName = os.path.join(directory, runName + "-logs", runName + ".xml")
+        fileName = os.path.join(directory, runName, "logs", runProperties["setup"] + ".xml")
 
         e = xml.etree.ElementTree.parse(fileName).getroot()
         subset = {}
@@ -152,9 +135,8 @@ def getQPS (directory):
     setups = collections.OrderedDict(sorted(setups.items(), key=lambda x:x[0] if x[0] else ""))
     print ("QMpH")
     for setup in setups.keys():
-        setupLabel = setupLabels[setup]
-        print('"' + setupLabel+ '"', end="\t")
-        print('"' + setupLabel+ '"', end="\t")
+        print('"' + setup + '"', end="\t")
+        print('"' + setup + '"', end="\t")
     print()
     for numbers in setups.values():
         #print(numbers)
@@ -164,9 +146,8 @@ def getQPS (directory):
     print ("Queries")
     print("labels", end="\t")
     for setup in setups.keys():
-        setupLabel = setupLabels[setup]
-        print('"' + setupLabel+ '"', end="\t")
-        print('"' + setupLabel+ '"', end="\t")
+        print('"' + setup + '"', end="\t")
+        print('"' + setup + '"', end="\t")
     print()
     for id, label in queryLabels.items():
         print('"' + label + '"', end="\t")
@@ -183,13 +164,16 @@ def alignCommits (runDir):
 
     offset = 0
     run = os.path.basename(runDir)
-    with open(os.path.join(runDir + "-logs", run + "-run.log"), 'r') as runlogFile:
+
+    match = runPattern.match(run)
+    with open(os.path.join(runDir, "logs", match.group("setup") + "-run.log"), 'r') as runlogFile:
         firstLine = runlogFile.readline()
         s = " ".join(firstLine.split()[0:2])
         offset = int(time.mktime(datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S,%f").timetuple()))
 
-    resourcelog = open(os.path.join(runDir + "-logs", "mem-" + run), 'r')
-    repo = git.Repo(runDir)
+    resourcelog = open(os.path.join(runDir, "logs", "resources-mem.log"), 'r')
+    # TODO read from scenario configuration
+    repo = git.Repo(os.path.join(runDir, "repo"))
     log = repo.git.log('--date=raw', '--pretty=format:%cd')
     # | awk '{ print $1 }'
 
@@ -206,7 +190,7 @@ def alignCommits (runDir):
             print(line.strip(), "\"count of commits\"")
             continue
         #print(int(date), ">", logPop)
-        while (int(date) > logPop):
+        while (float(date) > logPop):
             if log:
                 logPop = int(log.pop())
                 countCommits += 1
@@ -215,7 +199,7 @@ def alignCommits (runDir):
             else:
                 break
         values = line.split()
-        print(str(int(values[0])-offset), values[1], values[2], countCommits)
+        print(str(float(values[0])-offset), values[1], values[2], countCommits)
 
 def alignAddDelete (runDir):
     """
