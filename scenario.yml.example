@@ -5,7 +5,7 @@ bsbmRuns: 100
 bsbmWarmup: 5
 resultDirectory: "2017-07-27_2/"
 repositoryBasePath: "repo"
-logBasePath: "log"
+logBasePath: "logs"
 bareRepo: false
 
 scenarios:

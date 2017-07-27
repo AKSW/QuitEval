@@ -35,9 +35,9 @@ Start the test runs:
 
 # Verification of a quit repository after the bsbm execution
 
-reset the repository to the initial commit
+reset the repository to the initial commit (currently the initial commit is not tagged with the `./bsqbm.py` script so you have to find and tag it on your own.)
 
-    git reset --hard init-graph
+    git checkout init-graph
 
     sed "s/.$/<urn:bsbm> ./g" ../bsbmtools-0.2/dataset.nt | LC_ALL=C sort -u > graph.nq
     ./verify.py <quit_repo>-log/run….log <quit_repo> graph.nq

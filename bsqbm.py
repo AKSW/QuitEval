@@ -83,7 +83,7 @@ class Execution:
         #gitattributes = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "stuff", ".gitattributes")
         #shutil.copy(gitattributes, directory)
         #cp stuff/.gitattributes $directory/
-        configttl= os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "stuff", "config.ttl")
+        configttl= os.path.join(os.path.dirname(os.path.abspath(__file__)), "stuff", "config.ttl")
         shutil.copy(configttl, os.path.join(self.repositoryPath, "config.ttl"))
 
         # sed "s/.$/<urn:bsbm> ./g" $BSBM_DIR/dataset.nt | LC_ALL=C sort -u > $REPOSITORY/graph.nq
@@ -264,10 +264,10 @@ def main(scenarioPath):
             execution.bsbmWarmup = bsbmWarmup
 
             # these parameters are individual per scenario
-            runDirectory = os.path.join(resultDirectory, runName)
-            getScenarioPath = getScenarioPathFunction(runName, runDirectory, runConfig)
+            runDirectory = os.path.join(resultDirectory, "quit-" + runName)
+            getScenarioPath = getScenarioPathFunction("quit-" + runName, runDirectory, runConfig)
 
-            execution.runName = runName
+            execution.runName = "quit-" + runName
             execution.repositoryPath = getScenarioPath("repositoryBasePath", repositoryBasePath)
             execution.logPath = getScenarioPath("logBasePath", logBasePath)
             execution.quitArgs = runConfig["storeArguments"] if "storeArguments" in runConfig else ""
