@@ -9,7 +9,6 @@ import subprocess
 import shlex
 import time
 import datetime
-from memory_profiler import memory_usage, LogFile
 import psutil
 import threading
 import pygit2
@@ -54,6 +53,7 @@ class Execution:
     quitArgs = None
     bareRepo = None
     configGarbageCollection = None
+    profiling = False
 
     def prepare(self):
 
@@ -66,6 +66,7 @@ class Execution:
         print ("args:", self.quitArgs)
         print ("bareRepo:", self.bareRepo)
         print ("configGarbageCollection:", self.configGarbageCollection)
+        print ("profiling:", self.profiling)
         print ()
 
         os.makedirs(self.logPath, exist_ok=True)
@@ -122,14 +123,18 @@ class Execution:
         monitor.start()
         print("Monitor started")
         # self.runMonitor()
-        time.sleep(10)
+        time.sleep(20)
         self.runBSBM()
         if (block):
             self.bsbmProcess.wait()
 
     def runQuit(self):
         quitArgs = shlex.split(self.quitArgs)
-        quitCommand = [self.quitExecutable, "-cm", "localconfig", "-c", os.path.join(self.repositoryPath, "config.ttl"), "-t", self.repositoryPath] + quitArgs
+        if self.profiling:
+            quitCommand = ["python", "-m", "cProfile", "-o", os.path.join(self.logPath, "profile_data.pyprof")]
+        else:
+            quitCommand = []
+        quitCommand += [self.quitExecutable, "-cm", "localconfig", "-c", os.path.join(self.repositoryPath, "config.ttl"), "-t", self.repositoryPath] + quitArgs
         print("Start quit:", quitCommand)
         self.quitProcess = subprocess.Popen(quitCommand)
         # "mprof", "run", "--multiprocess",
@@ -248,34 +253,39 @@ def main(scenarioPath):
     logBasePath = docs["logBasePath"] if "logBasePath" in docs else "logs"
 
     bareRepo = docs["bareRepo"] if "bareRepo" in docs else False
+    profiling = docs["profiling"] if "profiling" in docs else False
     configGarbageCollection = docs["configGarbageCollection"] if "configGarbageCollection" in docs else False
 
     runner = BSQBMRunner()
 
-    for scenario in docs["scenarios"]:
-        print(scenario.items())
-        for runName, runConfig in scenario.items():
+    for repetition in range(1, repetitions+1):
+        for scenario in docs["scenarios"]:
+            print(scenario.items())
+            for runName, runConfig in scenario.items():
 
-            # these lines could go into a factory
-            execution = Execution()
-            execution.quitExecutable = quitExecutable
-            execution.bsbmLocation = bsbmLocation
-            execution.bsbmRuns = bsbmRuns
-            execution.bsbmWarmup = bsbmWarmup
+                runName = runName + "-" + str(repetition)
 
-            # these parameters are individual per scenario
-            runDirectory = os.path.join(resultDirectory, "quit-" + runName)
-            getScenarioPath = getScenarioPathFunction("quit-" + runName, runDirectory, runConfig)
+                # these lines could go into a factory
+                execution = Execution()
+                execution.bsbmLocation = bsbmLocation
+                execution.bsbmRuns = bsbmRuns
+                execution.bsbmWarmup = bsbmWarmup
 
-            execution.runName = "quit-" + runName
-            execution.repositoryPath = getScenarioPath("repositoryBasePath", repositoryBasePath)
-            execution.logPath = getScenarioPath("logBasePath", logBasePath)
-            execution.quitArgs = runConfig["storeArguments"] if "storeArguments" in runConfig else ""
-            execution.bareRepo = runConfig["bareRepo"] if "bareRepo" in runConfig else bareRepo
-            execution.configGarbageCollection = runConfig["configGarbageCollection"] if "configGarbageCollection" in runConfig else configGarbageCollection
+                # these parameters are individual per scenario
+                runDirectory = os.path.join(resultDirectory, "quit-" + runName)
+                getScenarioPath = getScenarioPathFunction("quit-" + runName, runDirectory, runConfig)
+
+                execution.runName = "quit-" + runName
+                execution.quitExecutable = runConfig["quitExecutable"] if "quitExecutable" in runConfig else quitExecutable
+                execution.repositoryPath = getScenarioPath("repositoryBasePath", repositoryBasePath)
+                execution.logPath = getScenarioPath("logBasePath", logBasePath)
+                execution.quitArgs = runConfig["storeArguments"] if "storeArguments" in runConfig else ""
+                execution.bareRepo = runConfig["bareRepo"] if "bareRepo" in runConfig else bareRepo
+                execution.profiling = runConfig["profiling"] if "profiling" in runConfig else profiling
+                execution.configGarbageCollection = runConfig["configGarbageCollection"] if "configGarbageCollection" in runConfig else configGarbageCollection
 
 
-            runner.addExecutionToQueue(execution)
+                runner.addExecutionToQueue(execution)
 
     # start benchmarks
     runner.prepare()

@@ -1,4 +1,4 @@
-bsbmLocation: "../../bsbmtools-0.2/"
+bsbmLocation: "../bsbmtools-0.2/"
 quitExecutable: "quit-store"
 repetitions: 2
 bsbmRuns: 100
@@ -7,6 +7,7 @@ resultDirectory: "2017-07-27_2/"
 repositoryBasePath: "repo"
 logBasePath: "logs"
 bareRepo: false
+profiling: false
 
 scenarios:
     - "withGC": {
@@ -17,6 +18,9 @@ scenarios:
     - "tmpFS": {
         storeArguments: "",
         repositoryBasePath: "/tmp/mnt/"
+    }
+    - "newFeature": {
+        quitExecutable: "quit-store-with-new-feature"
     }
     - "baseline": {
         storeArguments: "-nv"
