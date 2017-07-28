@@ -12,23 +12,28 @@ import git
 import time
 import datetime
 
+from jinja2 import Template
+
 import os
+
+basedir = os.path.dirname(os.path.abspath(__file__))
+
 
 queryLabels = {
 1: "INSERT DATA",
 2: "DELETE WHERE",
-3: "Explore 1" ,
-4: "Explore 2" ,
-5: "Explore 3" ,
-6: "Explore 4" ,
-7: "Explore 5" ,
+3: "Query 1" ,
+4: "Query 2" ,
+5: "Query 3" ,
+6: "Query 4" ,
+7: "Query 5" ,
 # 8 does not exist
-9: "Explore 7" ,
-10: "Explore 8" ,
-11: "Explore 9" ,
-12: "Explore 10",
-13: "Explore 11",
-14: "Explore 12"
+9: "Query 7" ,
+10: "Query 8" ,
+11: "Query 9" ,
+12: "Query 10",
+13: "Query 11",
+14: "Query 12"
 }
 
 colors = ["#FF4A46", "#008941", "#006FA6", "#A30059", "#FFDBE5", "#7A4900", "#0000A6", "#63FFAC", "#B79762", "#004D43",
@@ -164,6 +169,38 @@ def getQPS (directory):
 
     with open(os.path.join(directory, "bsbm.dat"), "w") as bsbm_dat_file:
         bsbm_dat_file.write(bsbm_dat)
+
+    # Write gnuplot scripts
+
+    bsbm_data = {
+        "file": 'bsbm.dat',
+        "file_qmph": 'bsbm_qmph.dat',
+        "scenarios": []
+    }
+
+    column = 0
+    for setup in setups.keys():
+        column += 2
+        if column/2 > len(colors):
+            print("WARNING: colors can not be distinguished")
+        bsbm_data["scenarios"].append({"setup": setup, "column": column, "color": colors[int(column/2)%len(colors)]})
+
+    with open( os.path.join(basedir, "stuff", 'bsbm.plot.tpl'), "r" ) as bsbm_tpl:
+        template = Template( bsbm_tpl.read() )
+        with open(os.path.join(directory, "bsbm.plot"), "w") as bsbm_plot:
+            bsbm_plot.write(template.render(bsbm_data))
+
+    with open( os.path.join(basedir, "stuff", 'bsbm_qmph.plot.tpl'), "r" ) as bsbm_tpl:
+        template = Template( bsbm_tpl.read() )
+        print(template.render(bsbm_data))
+        with open(os.path.join(directory, "bsbm_qmph.plot"), "w") as bsbm_plot:
+            bsbm_plot.write(template.render(bsbm_data))
+
+        with open( os.path.join(basedir, "stuff", 'bsbm.plot.tpl'), "r" ) as bsbm_tpl:
+            #read it
+            template = Template( bsbm_tpl.read() )
+            #do the substitution
+            gnuplot = template.render(bsbm_data)
 
 def alignCommits (runDir):
     """
