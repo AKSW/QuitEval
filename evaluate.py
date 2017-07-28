@@ -192,15 +192,8 @@ def getQPS (directory):
 
     with open( os.path.join(basedir, "stuff", 'bsbm_qmph.plot.tpl'), "r" ) as bsbm_tpl:
         template = Template( bsbm_tpl.read() )
-        print(template.render(bsbm_data))
         with open(os.path.join(directory, "bsbm_qmph.plot"), "w") as bsbm_plot:
             bsbm_plot.write(template.render(bsbm_data))
-
-        with open( os.path.join(basedir, "stuff", 'bsbm.plot.tpl'), "r" ) as bsbm_tpl:
-            #read it
-            template = Template( bsbm_tpl.read() )
-            #do the substitution
-            gnuplot = template.render(bsbm_data)
 
 def alignCommits (runDir):
     """
