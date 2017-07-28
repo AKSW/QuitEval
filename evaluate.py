@@ -14,6 +14,8 @@ import datetime
 
 from jinja2 import Template
 
+from bsqbm import ScenarioReader
+
 import os
 
 basedir = os.path.dirname(os.path.abspath(__file__))
@@ -183,7 +185,7 @@ def getQPS (directory):
         column += 2
         if column/2 > len(colors):
             print("WARNING: colors can not be distinguished")
-        bsbm_data["scenarios"].append({"setup": setup, "column": column, "color": colors[int(column/2)%len(colors)]})
+        bsbm_data["scenarios"].append({"setup": setup, "column": column, "color": colors[int(math.floor((column-1)/2))%len(colors)]})
 
     with open( os.path.join(basedir, "stuff", 'bsbm.plot.tpl'), "r" ) as bsbm_tpl:
         template = Template( bsbm_tpl.read() )
@@ -195,49 +197,83 @@ def getQPS (directory):
         with open(os.path.join(directory, "bsbm_qmph.plot"), "w") as bsbm_plot:
             bsbm_plot.write(template.render(bsbm_data))
 
-def alignCommits (runDir):
+def alignCommitsForAllScenarios (runDir):
+
+    generalConfig, scenarios = ScenarioReader().readScenariosFromDir(runDir)
+    print(generalConfig)
+    print(scenarios)
+
+    mem_data = {
+        "scenarios": []
+    }
+
+    color = 0
+    maxCommits = 1
+    for scenario in scenarios:
+        commits = alignCommits(scenario, runDir)
+        maxCommits = max(maxCommits, commits)
+        mem_data["scenarios"].append({
+            "file": scenario.runName + ".dat",
+            "title": scenario.runName,
+            "color": colors[color%len(colors)],
+            })
+        color += 1
+    mem_data["maxCommits"] = maxCommits
+
+    if color > len(colors):
+        print("WARNING: colors can not be distinguished")
+
+    with open( os.path.join(basedir, "stuff", 'mem.plot.tpl'), "r" ) as mem_tpl:
+        template = Template( mem_tpl.read() )
+        with open(os.path.join(runDir, "mem.plot"), "w") as mem_plot:
+            mem_plot.write(template.render(mem_data))
+
+def alignCommits (scenario, runDir):
     """
     This method adds another column to the resource/memory log, containing the number of commits
     The original input already contains the three columns "timestamp", "repo size", "memory consumption"
     """
 
     offset = 0
-    run = os.path.basename(runDir)
 
-    with open(os.path.join(runDir, "logs", runName + "-run.log"), 'r') as runlogFile:
+    with open(os.path.join(runDir, "..", scenario.logPath, scenario.runName + "-run.log"), 'r') as runlogFile:
         firstLine = runlogFile.readline()
         s = " ".join(firstLine.split()[0:2])
         offset = int(time.mktime(datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S,%f").timetuple()))
 
-    resourcelog = open(os.path.join(runDir, "logs", "resources-mem.log"), 'r')
-    # TODO read from scenario configuration
-    repo = git.Repo(os.path.join(runDir, "repo"))
+    resourcelog = open(os.path.join(runDir, "..", scenario.logPath, "resources-mem.log"), 'r')
+    repo = git.Repo(scenario.repositoryPath)
     log = repo.git.log('--date=raw', '--pretty=format:%cd')
     # | awk '{ print $1 }'
-
-    print("time", "reposize", "mem", "countCommits")
 
     log = list(e.split()[0] for e in log.split("\n"))
 
     countCommits = 1
     logPop = int(log.pop())
-    for line in list(resourcelog):
-        date = line.split()[0]
-        #if not isinstance(date, int):
-        if date == "time":
-            print(line.strip(), "\"count of commits\"")
-            continue
-        #print(int(date), ">", logPop)
-        while (float(date) > logPop):
-            if log:
-                logPop = int(log.pop())
-                countCommits += 1
-                #print(int(date), ">", logPop)
-                #print(countCommits, date)
-            else:
-                break
-        values = line.split()
-        print(str(float(values[0])-offset), values[1], values[2], countCommits)
+    with open(os.path.join(runDir, scenario.runName + ".dat"), "w") as dat_file:
+        titleDone = False
+        for line in list(resourcelog):
+            date = line.split()[0]
+            #if not isinstance(date, int):
+            if date == "time":
+                dat_file.write(" ".join([line.strip(), "\"count of commits\"\n"]))
+                titleDone = True
+                continue
+            if not titleDone:
+                dat_file.write(" ".join(["time", "reposize", "mem", "countCommits\n"]))
+                titleDone = True
+            #print(int(date), ">", logPop)
+            while (float(date) > logPop):
+                if log:
+                    logPop = int(log.pop())
+                    countCommits += 1
+                    #print(int(date), ">", logPop)
+                    #print(countCommits, date)
+                else:
+                    break
+            values = line.split()
+            dat_file.write(" ".join([str(float(values[0])-offset), str(values[1]), str(values[2]), str(countCommits), "\n"]))
+    return countCommits
 
 def alignAddDelete (runDir):
     """
@@ -291,6 +327,11 @@ def alignAddDelete (runDir):
             print(str(int(values[0])-offset), values[1], values[2], countCommits, countStatements, countAdd, countDelete)
 
 def plotForMem (directory):
+    """
+    Align multiples runs of the same setup/scenario to a common series of averaged data points
+
+    TODO
+    """
     runs = findRuns(directory)
 
     # https://stackoverflow.com/questions/1241029/how-to-filter-a-dictionary-by-value#1241354
@@ -303,7 +344,7 @@ def plotForMem (directory):
         runGroup = dict(group)
         setup = {}
         for runName, runProperties in runGroup.items():
-            fileName = os.path.join(directory, runName + "-logs", "mem-" + runName)
+            fileName = os.path.join(directory, runName, "logs", "resources-mem.log")
             with open(fileName) as memlogFile:
                 memlog = list(memlogFile)
                 for line in memlog:
@@ -333,7 +374,7 @@ if __name__ == "__main__":
         getQPS(args.directory)
     elif args.align:
         # directory in this case is a specific quit run repo
-        alignCommits(args.directory)
+        alignCommitsForAllScenarios(args.directory)
     elif args.alignAD:
         # directory in this case is a specific quit run repo
         alignAddDelete(args.directory)

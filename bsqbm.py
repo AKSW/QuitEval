@@ -30,8 +30,9 @@ class BSQBMRunner:
             if (block):
                 execution.terminate()
 
-    def addExecutionToQueue(self, execution):
-        self.executionQueue.append(execution)
+    def addExecutionsToQueue(self, executions):
+        self.executionQueue += executions
+        print(self.executionQueue)
 
     def terminate(self):
         print("Terminate all executions (", len(self.executionQueue),")")
@@ -84,7 +85,7 @@ class Execution:
         #gitattributes = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "stuff", ".gitattributes")
         #shutil.copy(gitattributes, directory)
         #cp stuff/.gitattributes $directory/
-        configttl= os.path.join(os.path.dirname(os.path.abspath(__file__)), "stuff", "config.ttl")
+        configttl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stuff", "config.ttl")
         shutil.copy(configttl, os.path.join(self.repositoryPath, "config.ttl"))
 
         # sed "s/.$/<urn:bsbm> ./g" $BSBM_DIR/dataset.nt | LC_ALL=C sort -u > $REPOSITORY/graph.nq
@@ -137,26 +138,18 @@ class Execution:
         quitCommand += [self.quitExecutable, "-cm", "localconfig", "-c", os.path.join(self.repositoryPath, "config.ttl"), "-t", self.repositoryPath] + quitArgs
         print("Start quit:", quitCommand)
         self.quitProcess = subprocess.Popen(quitCommand)
-        # "mprof", "run", "--multiprocess",
         print(self.quitProcess.pid)
 
     def runMonitor(self, process, directory):
         print("Start monitor on pid: {} in directory: {}".format(self.quitProcess.pid, self.repositoryPath))
-        # self.memory_log = open("memory_log.txt", "w", encoding="utf-8")
-        # self.mem_usage = memory_usage(self.quitProcess.pid, interval=.1, include_children=True, stream=self.memory_log)
-        # print(self.mem_usage)
-        # sys.stdout = LogFile('memory_profile_log')
-        reslog = open(os.path.join(self.logPath, "resources-mem.log"), "w")
-        psProcess = psutil.Process(process.pid)
-        while(process.poll() == None):
-            # timestamp = datetime.datetime.now()
-            timestamp = float(round(time.time() * 1000)/1000)
-            mem = psProcess.memory_info().rss
-            #du = os.statvfs(directory)
-            du = self.get_size(directory)
-            reslog.write(str(timestamp) + " " + str(du) + " " + str(mem) + "\n")
-            time.sleep(1)
-        reslog.close()
+        with open(os.path.join(self.logPath, "resources-mem.log"), "a") as reslog:
+            psProcess = psutil.Process(process.pid)
+            while(process.poll() == None):
+                timestamp = float(round(time.time() * 1000)/1000)
+                mem = float(psProcess.memory_info().rss)/1024
+                du = self.get_size(directory)
+                reslog.write("{} {} {}\n".format(timestamp, du, mem))
+                time.sleep(1)
 
     def get_size(self, start_path = '.'):
         total_size = 0
@@ -184,8 +177,9 @@ class Execution:
         print(self.bsbmProcess.pid)
 
     def __del__(self):
-        print("Destructor called for", self.quitProcess.pid, "and", self.bsbmProcess.pid)
-        self.terminate()
+        if self.running:
+            print("Destructor called for", self.quitProcess.pid, "and", self.bsbmProcess.pid)
+            self.terminate()
 
     def terminate(self):
         if self.running:
@@ -215,14 +209,78 @@ class Execution:
         else:
             print("Already exited", process.pid, "(exited with:", str(retVal) + ")")
 
-def getScenarioPathFunction(runName, runDirectory, runConfig):
-    def scenarioPathFunction(key, default):
-        basePath = runConfig[key] if key in runConfig else default
-        if os.path.isabs(basePath):
-            return os.path.join(basePath, runName)
-        else:
-            return os.path.abspath(os.path.join(runDirectory, basePath))
-    return scenarioPathFunction
+class ScenarioReader:
+
+    def readScenariosFromDir(self, runDir):
+        scenarioPath = os.path.join(runDir, "scenario.yml")
+        if not os.path.exists(scenarioPath):
+            raise Exception("There is no index of scenarios, looking for {}".format(scenarioPath))
+
+        stream = open(scenarioPath, "r")
+        docs = yaml.safe_load(stream)
+
+        return ScenarioReader().readScenarios(docs, runDir)
+
+    def readScenarios(self, docs, basePath):
+
+        generalConfig = {}
+        scenarios = []
+
+        resultDirectory = os.path.abspath(os.path.join(basePath, docs["resultDirectory"]))
+        generalConfig["resultDirectory"] = resultDirectory
+
+        bsbmLocation = docs["bsbmLocation"]
+        quitExecutable = docs["quitExecutable"]
+
+        repetitions = docs["repetitions"] if "repetitions" in docs else "3"
+        bsbmRuns = docs["bsbmRuns"] if "bsbmRuns" in docs else "100"
+        bsbmWarmup = docs["bsbmWarmup"] if "bsbmWarmup" in docs else "5"
+
+        repositoryBasePath = docs["repositoryBasePath"] if "repositoryBasePath" in docs else "repo"
+        logBasePath = docs["logBasePath"] if "logBasePath" in docs else "logs"
+
+        bareRepo = docs["bareRepo"] if "bareRepo" in docs else False
+        profiling = docs["profiling"] if "profiling" in docs else False
+        configGarbageCollection = docs["configGarbageCollection"] if "configGarbageCollection" in docs else False
+
+        for repetition in range(1, repetitions+1):
+            for scenario in docs["scenarios"]:
+                print(scenario.items())
+                for runName, runConfig in scenario.items():
+
+                    runName = runName + "-" + str(repetition)
+
+                    # these lines could go into a factory
+                    execution = Execution()
+                    execution.bsbmLocation = bsbmLocation
+                    execution.bsbmRuns = bsbmRuns
+                    execution.bsbmWarmup = bsbmWarmup
+
+                    # these parameters are individual per scenario
+                    runDirectory = os.path.join(resultDirectory, "quit-" + runName)
+                    getScenarioPath = self.__getScenarioPathFunction("quit-" + runName, runDirectory, runConfig)
+
+                    execution.runName = "quit-" + runName
+                    execution.quitExecutable = runConfig["quitExecutable"] if "quitExecutable" in runConfig else quitExecutable
+                    execution.repositoryPath = getScenarioPath("repositoryBasePath", repositoryBasePath)
+                    execution.logPath = getScenarioPath("logBasePath", logBasePath)
+                    execution.quitArgs = runConfig["storeArguments"] if "storeArguments" in runConfig else ""
+                    execution.bareRepo = runConfig["bareRepo"] if "bareRepo" in runConfig else bareRepo
+                    execution.profiling = runConfig["profiling"] if "profiling" in runConfig else profiling
+                    execution.configGarbageCollection = runConfig["configGarbageCollection"] if "configGarbageCollection" in runConfig else configGarbageCollection
+
+                    scenarios.append(execution)
+
+        return generalConfig, scenarios
+
+    def __getScenarioPathFunction(self, runName, runDirectory, runConfig):
+        def scenarioPathFunction(key, default):
+            basePath = runConfig[key] if key in runConfig else default
+            if os.path.isabs(basePath):
+                return os.path.join(basePath, runName)
+            else:
+                return os.path.abspath(os.path.join(runDirectory, basePath))
+        return scenarioPathFunction
 
 def main(scenarioPath):
     """Start the BSQBM."""
@@ -241,51 +299,22 @@ def main(scenarioPath):
     stream = open(scenarioPath, "r")
     docs = yaml.safe_load(stream)
 
-    bsbmLocation = docs["bsbmLocation"]
-    quitExecutable = docs["quitExecutable"]
+    generalConfig, scenarios = ScenarioReader().readScenarios(docs, os.path.dirname(scenarioPath))
 
-    repetitions = docs["repetitions"] if "repetitions" in docs else "3"
-    bsbmRuns = docs["bsbmRuns"] if "bsbmRuns" in docs else "100"
-    bsbmWarmup = docs["bsbmWarmup"] if "bsbmWarmup" in docs else "5"
+    if os.path.exists(generalConfig["resultDirectory"]):
+        print("The result directory ({}) already exists, please provide an empty location".format(generalConfig["resultDirectory"]))
+        sys.exit(1)
 
-    resultDirectory = os.path.abspath(docs["resultDirectory"])
-    repositoryBasePath = docs["repositoryBasePath"] if "repositoryBasePath" in docs else "repo"
-    logBasePath = docs["logBasePath"] if "logBasePath" in docs else "logs"
-
-    bareRepo = docs["bareRepo"] if "bareRepo" in docs else False
-    profiling = docs["profiling"] if "profiling" in docs else False
-    configGarbageCollection = docs["configGarbageCollection"] if "configGarbageCollection" in docs else False
+    os.makedirs(generalConfig["resultDirectory"])
 
     runner = BSQBMRunner()
+    runner.addExecutionsToQueue(scenarios)
 
-    for repetition in range(1, repetitions+1):
-        for scenario in docs["scenarios"]:
-            print(scenario.items())
-            for runName, runConfig in scenario.items():
+    with open(os.path.join(generalConfig["resultDirectory"], "scenario.yml"), "w") as resultScenario:
+        docs["resultDirectory"] = "."
+        resultScenario.write(yaml.dump(docs))
 
-                runName = runName + "-" + str(repetition)
-
-                # these lines could go into a factory
-                execution = Execution()
-                execution.bsbmLocation = bsbmLocation
-                execution.bsbmRuns = bsbmRuns
-                execution.bsbmWarmup = bsbmWarmup
-
-                # these parameters are individual per scenario
-                runDirectory = os.path.join(resultDirectory, "quit-" + runName)
-                getScenarioPath = getScenarioPathFunction("quit-" + runName, runDirectory, runConfig)
-
-                execution.runName = "quit-" + runName
-                execution.quitExecutable = runConfig["quitExecutable"] if "quitExecutable" in runConfig else quitExecutable
-                execution.repositoryPath = getScenarioPath("repositoryBasePath", repositoryBasePath)
-                execution.logPath = getScenarioPath("logBasePath", logBasePath)
-                execution.quitArgs = runConfig["storeArguments"] if "storeArguments" in runConfig else ""
-                execution.bareRepo = runConfig["bareRepo"] if "bareRepo" in runConfig else bareRepo
-                execution.profiling = runConfig["profiling"] if "profiling" in runConfig else profiling
-                execution.configGarbageCollection = runConfig["configGarbageCollection"] if "configGarbageCollection" in runConfig else configGarbageCollection
-
-
-                runner.addExecutionToQueue(execution)
+    # shutil.copy(scenarioPath, )
 
     # start benchmarks
     runner.prepare()
