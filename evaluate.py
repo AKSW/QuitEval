@@ -144,13 +144,13 @@ def getQPS (directory):
 
     bsbm_qmph_dat = ""
     print ("QMpH")
-    for setup in setups.keys():
-        bsbm_qmph_dat += "\"{}\" \"{}\"\t".format(setup, setup)
-    bsbm_qmph_dat += "\n"
-    for numbers in setups.values():
-        #print(numbers)
-        bsbm_qmph_dat += "{} {}\t".format(numbers["qmph"][1], numbers["qmph"][2])
-    bsbm_qmph_dat += "\n"
+    #bsbm_qmph_dat += "\n"
+    for setup, numbers in setups.items():
+        bsbm_qmph_dat += "\"{}\"\t".format(setup)
+        bsbm_qmph_dat += "{} {}\n".format(numbers["qmph"][1], numbers["qmph"][2])
+    #bsbm_qmph_dat += "\n"
+
+    print(bsbm_qmph_dat)
 
     with open(os.path.join(directory, "bsbm_qmph.dat"), "w") as bsbm_qmph_dat_file:
         bsbm_qmph_dat_file.write(bsbm_qmph_dat)
