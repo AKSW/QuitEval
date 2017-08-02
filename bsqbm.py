@@ -40,6 +40,48 @@ class BSQBMRunner:
             execution.terminate()
             execution = None
 
+class MonitorThread(threading.Thread):
+    """Thread class with a stop() method. The thread itself has to check
+    regularly for the stopped() condition."""
+
+    def __init__(self):
+        super(StoppableThread, self).__init__()
+        self._stop_event = threading.Event()
+
+    def stop(self):
+        self._stop_event.set()
+
+    def stopped(self):
+        return self._stop_event.is_set()
+
+    def setQuitProcessAndDirectory(self, process, repositoryPath, logPath):
+        self.process = process
+        self.repositoryPath = repositoryPath
+        self.logPath = logPath
+
+    def run(self):
+        print("Start monitor on pid: {} in directory: {}".format(self.process.pid, self.repositoryPath))
+        with open(os.path.join(self.logPath, "resources-mem.log"), "a") as reslog:
+            psProcess = psutil.Process(self.process.pid)
+            while(process.poll() == None && not self.stopped()):
+                timestamp = float(round(time.time() * 1000)/1000)
+                mem = float(psProcess.memory_info().rss)/1024
+                du = self.get_size(self.repositoryPath)
+                reslog.write("{} {} {}\n".format(timestamp, du, mem))
+                time.sleep(1)
+            print("Monitor stoped")
+
+    def get_size(self, start_path = '.'):
+        total_size = 0
+        for dirpath, dirnames, filenames in os.walk(start_path):
+            total_size += os.path.getsize(dirpath)
+            # print(str(os.path.getsize(dirpath)), dirpath)
+            for f in filenames:
+                fp = os.path.join(dirpath, f)
+                total_size += os.path.getsize(fp)
+                # print(str(os.path.getsize(fp)), fp)
+        return total_size/1024
+
 class Execution:
 
     running = False
@@ -120,8 +162,9 @@ class Execution:
 
         self.running = True
         self.runQuit()
-        monitor = threading.Thread(target=self.runMonitor, args=(self.quitProcess, self.repositoryPath))
-        monitor.start()
+        self.monitor = MonitorThread()
+        self.monitor.setQuitProcessAndDirectory(self.quitProcess, self.repositoryPath, self.logPath)
+        self.monitor.start()
         print("Monitor started")
         # self.runMonitor()
         time.sleep(20)
@@ -139,28 +182,6 @@ class Execution:
         print("Start quit:", quitCommand)
         self.quitProcess = subprocess.Popen(quitCommand)
         print(self.quitProcess.pid)
-
-    def runMonitor(self, process, directory):
-        print("Start monitor on pid: {} in directory: {}".format(self.quitProcess.pid, self.repositoryPath))
-        with open(os.path.join(self.logPath, "resources-mem.log"), "a") as reslog:
-            psProcess = psutil.Process(process.pid)
-            while(process.poll() == None):
-                timestamp = float(round(time.time() * 1000)/1000)
-                mem = float(psProcess.memory_info().rss)/1024
-                du = self.get_size(directory)
-                reslog.write("{} {} {}\n".format(timestamp, du, mem))
-                time.sleep(1)
-
-    def get_size(self, start_path = '.'):
-        total_size = 0
-        for dirpath, dirnames, filenames in os.walk(start_path):
-            total_size += os.path.getsize(dirpath)
-            # print(str(os.path.getsize(dirpath)), dirpath)
-            for f in filenames:
-                fp = os.path.join(dirpath, f)
-                total_size += os.path.getsize(fp)
-                # print(str(os.path.getsize(fp)), fp)
-        return total_size/1024
 
     def runBSBM(self):
         arguments = "{} -runs {} -w {} -dg \"urn:bsbm\" -o {} -ucf usecases/exploreAndUpdate/sparql.txt -udataset dataset_update.nt -u {}".format(
@@ -190,6 +211,7 @@ class Execution:
             # mv bsbm/run.log $QUIT_EVAL_DIR/$LOGDIR/$RUNDIR-run.log
             if (os.path.exists(os.path.join(self.bsbmLocation, "run.log"))):
                 os.rename(os.path.join(self.bsbmLocation, "run.log"), os.path.join(self.logPath, self.runName + "-run.log"))
+            self.monitor.stop()
             if hasattr(self, "quitProcess"):
                 self.terminateProcess(self.quitProcess)
             self.running = False
