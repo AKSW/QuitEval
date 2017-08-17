@@ -86,6 +86,7 @@ class MonitorThread(threading.Thread):
                 reslog.write("{} {} {}\n".format(timestamp, du, mem))
                 time.sleep(1)
             self.logger.debug("Monitor for {} on {} stopped, reason: process.poll() = {}; self.stopped() = {}".format(self.process.pid, self.repositoryPath, self.process.poll(), self.stopped()))
+        self.logger.debug("Monitor Run finished and all resources are closed")
 
     def get_size(self, start_path = '.'):
         total_size = 0
@@ -227,7 +228,11 @@ class Execution:
                 os.rename(os.path.join(self.bsbmLocation, "run.log"), os.path.join(self.logPath, self.runName + "-run.log"))
             if hasattr(self, "quitProcess"):
                 self.terminateProcess(self.quitProcess)
+            self.logger.debug("Call monitor.stop()")
             self.monitor.stop()
+            self.logger.debug("monitor.stop() called")
+            self.monitor.join()
+            self.logger.debug("monitor.join() finished")
             self.running = False
 
     def terminateProcess(self, process):
