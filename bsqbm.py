@@ -85,7 +85,7 @@ class MonitorThread(threading.Thread):
                 du = self.get_size(self.repositoryPath)
                 reslog.write("{} {} {}\n".format(timestamp, du, mem))
                 time.sleep(1)
-            self.logger.debug("Monitor for {} on {} stopped, reson: process.poll() = {}; self.stopped() = {}".format(self.process.pid, self.repositoryPath, self.process.poll(), self.stopped()))
+            self.logger.debug("Monitor for {} on {} stopped, reason: process.poll() = {}; self.stopped() = {}".format(self.process.pid, self.repositoryPath, self.process.poll(), self.stopped()))
 
     def get_size(self, start_path = '.'):
         total_size = 0
@@ -184,7 +184,6 @@ class Execution:
         if (block):
             self.bsbmProcess.wait()
         self.logger.debug("Run has finished")
-        self.monitor.stop()
 
     def runQuit(self):
         quitArgs = shlex.split(self.quitArgs)
@@ -226,17 +225,17 @@ class Execution:
             # mv bsbm/run.log $QUIT_EVAL_DIR/$LOGDIR/$RUNDIR-run.log
             if (os.path.exists(os.path.join(self.bsbmLocation, "run.log"))):
                 os.rename(os.path.join(self.bsbmLocation, "run.log"), os.path.join(self.logPath, self.runName + "-run.log"))
-            self.monitor.stop()
             if hasattr(self, "quitProcess"):
                 self.terminateProcess(self.quitProcess)
+            self.monitor.stop()
             self.running = False
 
     def terminateProcess(self, process):
         retVal = process.poll()
-        if retVal == None:
+        if retVal is None:
             process.terminate()
             try:
-                process.wait(3)
+                process.wait(10)
                 retVal = process.poll()
                 self.logger.debug("Terminated {} (exited with: {})".format(process.pid, retVal))
             except subprocess.TimeoutExpired:
