@@ -5,8 +5,10 @@ import git
 import random
 from verify import compareSets
 
-def szenario (s, l, r):
-    """
+
+def szenario(s, l, r):
+    """Define the Szenarios.
+
     szenarios:
          base  A   B   result
       1   0    0   0     0
@@ -23,7 +25,8 @@ def szenario (s, l, r):
     c = bool(l) and bool(r)
     return a or b or c
 
-def doMerges (quitrepo, dataset, seed, resultPath):
+
+def doMerges(quitrepo, dataset, seed, resultPath):
     random.seed(seed)
 
     baseString = []
@@ -33,16 +36,16 @@ def doMerges (quitrepo, dataset, seed, resultPath):
 
     with open(dataset, 'r') as datasetFile:
         for statement in list(datasetFile):
-            s = bool(random.randint(0,1))
-            a = bool(random.randint(0,1))
-            b = bool(random.randint(0,1))
+            s = bool(random.randint(0, 1))
+            a = bool(random.randint(0, 1))
+            b = bool(random.randint(0, 1))
             if s:
                 baseString.append(statement)
             if a:
                 localString.append(statement)
             if b:
                 remoteString.append(statement)
-            if szenario(s,a,b):
+            if szenario(s, a, b):
                 resultString.append(statement)
 
     if resultPath:
@@ -56,7 +59,7 @@ def doMerges (quitrepo, dataset, seed, resultPath):
     try:
         repo.git.rm([graphFileName])
         repo.git.commit('-m', "wipe graph")
-    except:
+    except Exception:
         pass
 
     with open(graphPath, 'w') as graphFile:
@@ -74,7 +77,7 @@ def doMerges (quitrepo, dataset, seed, resultPath):
     branchA = repo.head.commit
     repo.git.checkout(baseId)
 
-    print ("branch a:", branchA)
+    print("branch a:", branchA)
 
     with open(graphPath, 'w') as graphFile:
         graphFile.writelines(remoteString)
@@ -83,7 +86,7 @@ def doMerges (quitrepo, dataset, seed, resultPath):
     repo.git.commit('-m', "branch b")
     branchB = repo.head.commit
 
-    print ("branch b:", branchB)
+    print("branch b:", branchB)
 
     repo.git.checkout(branchA)
     repo.git.merge(branchB)
@@ -99,8 +102,8 @@ def doMerges (quitrepo, dataset, seed, resultPath):
 
 
 if __name__ == "__main__":
-    """
-    This script executes a bunch of merges on a quit repository and verifies the correctness of the merge result.
+    """This script executes a bunch of merges on a quit repository and verifies the correctness of
+    the merge result.
     """
 
     argparser = argparse.ArgumentParser()

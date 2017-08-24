@@ -11,6 +11,7 @@ from subprocess import call, CalledProcessError
 
 sys.setrecursionlimit(3000)
 
+
 def compareSets(right, left):
 
     add = right - left
@@ -22,7 +23,7 @@ def compareSets(right, left):
     else:
         ll = len(left)
         lr = len(right)
-        print ("len(left)", ll, "len(right)", lr)
+        print("len(left)", ll, "len(right)", lr)
 
         for a in add:
             sys.stdout.write("+ " + a)
@@ -30,12 +31,15 @@ def compareSets(right, left):
             sys.stdout.write("- " + a)
         return False
 
-def getNextCommit ():
-    ancestryPath = repo.git.log('--reverse', '--ancestry-path', '--pretty=format:"%h"', str(repo.head.commit)+'..master')
+
+def getNextCommit():
+    ancestryPath = repo.git.log('--reverse', '--ancestry-path',
+                                '--pretty=format:"%h"', str(repo.head.commit) + '..master')
     ancestryPath = ancestryPath.split("\n")
     return ancestryPath[0].strip("\"")
 
-def forwardAndVerifyStores (repo, store, updateStrings):
+
+def forwardAndVerifyStores(repo, store, updateStrings):
 
     try:
         parsedUpdate = parser.parseUpdate("".join(updateStrings))
@@ -47,13 +51,14 @@ def forwardAndVerifyStores (repo, store, updateStrings):
         if before != after:
             f = store.serialize(format="nquads").decode("utf-8")
 
-            print ("currently on commit", repo.head.commit)
+            print("currently on commit", repo.head.commit)
             nextcommit = getNextCommit()
             print("checking out", nextcommit)
             repo.git.checkout(nextcommit)
 
             graphFile = open(args.quitrepo + "/graph.nq", 'r')
-            left = set(filter(lambda line: line.strip(), set(e + "\n" for e in f.split("\n"))))
+            left = set(filter(lambda line: line.strip(),
+                              set(e + "\n" for e in f.split("\n"))))
             right = set(filter(lambda line: line.strip(), set(graphFile)))
             graphFile.close()
 
@@ -68,6 +73,7 @@ def forwardAndVerifyStores (repo, store, updateStrings):
         exit(1)
 
     return None
+
 
 if __name__ == "__main__":
     """
@@ -85,7 +91,8 @@ if __name__ == "__main__":
         querylog = open(args.querylog, 'r')
         repo = git.Repo(args.quitrepo)
         store = rdflib.ConjunctiveGraph()
-        store.parse(args.initialdata, format='nquads', publicID='http://localhost:5000/')
+        store.parse(args.initialdata, format='nquads',
+                    publicID='http://localhost:5000/')
     except Exception as e:
         print('Something is wrong:', e)
         import traceback
@@ -114,6 +121,6 @@ if __name__ == "__main__":
     querylog.close()
 
     if errors:
-        print ("Errors where detected in the following commits:", errors)
-    else :
-        print ("Everythin is fine, all update operations where recorded correctly")
+        print("Errors where detected in the following commits:", errors)
+    else:
+        print("Everythin is fine, all update operations where recorded correctly")

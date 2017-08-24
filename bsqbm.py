@@ -8,15 +8,17 @@ import yaml
 import subprocess
 import shlex
 import time
-import datetime
 import psutil
 import threading
 import pygit2
 import logging
+import FileNotFoundError
+import PermissionError
 
 logger = logging.getLogger('quit-eval')
 logger.setLevel(logging.DEBUG)
-formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+formatter = logging.Formatter(
+    '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
 # create console handler with a higher log level
 ch = logging.StreamHandler()
@@ -36,7 +38,7 @@ class BSQBMRunner:
             execution.prepare()
         self.prepared = True
 
-    def run(self, block = False):
+    def run(self, block=False):
         if not self.prepared:
             raise Exception("The Run was not prepared")
         for execution in self.executionQueue:
@@ -46,17 +48,23 @@ class BSQBMRunner:
 
     def addExecutionsToQueue(self, executions):
         self.executionQueue += executions
-        self.logger.debug("Execution Queue now contains: ".format(self.executionQueue))
+        self.logger.debug(
+            "Execution Queue now contains: ".format(self.executionQueue))
 
     def terminate(self):
-        self.logger.debug("Terminate all executions ({})".format(len(self.executionQueue)))
+        self.logger.debug("Terminate all executions ({})".format(
+            len(self.executionQueue)))
         for execution in self.executionQueue:
             execution.terminate()
             execution = None
 
+
 class MonitorThread(threading.Thread):
-    """Thread class with a stop() method. The thread itself has to check
-    regularly for the stopped() condition."""
+    """The Monitor Thread.
+
+    Thread class with a stop() method. The thread itself has to check
+    regularly for the stopped() condition.
+    """
 
     logger = logging.getLogger('quit-eval.monitor')
 
@@ -76,19 +84,22 @@ class MonitorThread(threading.Thread):
         self.logPath = logPath
 
     def run(self):
-        self.logger.debug("Start monitor on pid: {} in directory: {}".format(self.process.pid, self.repositoryPath))
+        self.logger.debug("Start monitor on pid: {} in directory: {}".format(
+            self.process.pid, self.repositoryPath))
         with open(os.path.join(self.logPath, "resources-mem.log"), "a") as reslog:
             psProcess = psutil.Process(self.process.pid)
             while(self.process.poll() is None and not self.stopped()):
-                timestamp = float(round(time.time() * 1000)/1000)
-                mem = float(psProcess.memory_info().rss)/1024
+                timestamp = float(round(time.time() * 1000) / 1000)
+                mem = float(psProcess.memory_info().rss) / 1024
                 du = self.get_size(self.repositoryPath)
                 reslog.write("{} {} {}\n".format(timestamp, du, mem))
                 time.sleep(1)
-            self.logger.debug("Monitor for {} on {} stopped, reason: process.poll() = {}; self.stopped() = {}".format(self.process.pid, self.repositoryPath, self.process.poll(), self.stopped()))
+            self.logger.debug(
+                "Monitor for {} on {} stopped, reason: process.poll() = {}; self.stopped() = {}"
+                .format(self.process.pid, self.repositoryPath, self.process.poll(), self.stopped()))
         self.logger.debug("Monitor Run finished and all resources are closed")
 
-    def get_size(self, start_path = '.'):
+    def get_size(self, start_path='.'):
         total_size = 0
         for dirpath, dirnames, filenames in os.walk(start_path):
             total_size += os.path.getsize(dirpath)
@@ -97,7 +108,8 @@ class MonitorThread(threading.Thread):
                 fp = os.path.join(dirpath, f)
                 total_size += os.path.getsize(fp)
                 # self.logger.debug("size {} of {}".format(os.path.getsize(fp), fp))
-        return total_size/1024
+        return total_size / 1024
+
 
 class Execution:
 
@@ -119,15 +131,18 @@ class Execution:
 
     def prepare(self):
 
-        self.logger.debug("prepare scenario \"{}\" with configuration:".format(self.runName))
+        self.logger.debug(
+            "prepare scenario \"{}\" with configuration:".format(self.runName))
         self.logger.debug("quit: {}".format(self.quitExecutable))
         self.logger.debug("bsbm: {}".format(self.bsbmLocation))
-        self.logger.debug("bsbm config: runs={} warmup={}".format(self.bsbmRuns, self.bsbmWarmup))
+        self.logger.debug("bsbm config: runs={} warmup={}".format(
+            self.bsbmRuns, self.bsbmWarmup))
         self.logger.debug("repositoryPath: {}".format(self.repositoryPath))
         self.logger.debug("logPath: {}".format(self.logPath))
         self.logger.debug("args: {}".format(self.quitArgs))
         self.logger.debug("bareRepo: {}".format(self.bareRepo))
-        self.logger.debug("configGarbageCollection: {}".format(self.configGarbageCollection))
+        self.logger.debug("configGarbageCollection: {}".format(
+            self.configGarbageCollection))
         self.logger.debug("profiling: {}".format(self.profiling))
 
         os.makedirs(self.logPath, exist_ok=True)
@@ -139,13 +154,9 @@ class Execution:
             self.prepare_repository(self.repositoryPath)
 
     def prepare_repository(self, directory):
-        repo = pygit2.init_repository(directory) # git init $directory
-        if self.configGarbageCollection:
-            repo.config.set_multivar("gc.auto", "*", 257)
-        #gitattributes = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "stuff", ".gitattributes")
-        #shutil.copy(gitattributes, directory)
-        #cp stuff/.gitattributes $directory/
-        configttl = os.path.join(os.path.dirname(os.path.abspath(__file__)), "stuff", "config.ttl")
+        repo = pygit2.init_repository(directory)  # git init $directory
+        configttl = os.path.join(os.path.dirname(
+            os.path.abspath(__file__)), "stuff", "config.ttl")
         shutil.copy(configttl, os.path.join(self.repositoryPath, "config.ttl"))
 
         # sed "s/.$/<urn:bsbm> ./g" $BSBM_DIR/dataset.nt | LC_ALL=C sort -u > $REPOSITORY/graph.nq
@@ -155,7 +166,7 @@ class Execution:
                     targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm> .\n")
 
         with open(os.path.join(directory, "graph.nq.graph"), 'w') as targetGraphDotGraph:
-                 targetGraphDotGraph.write("urn:bsbm\n")
+            targetGraphDotGraph.write("urn:bsbm\n")
 
         index = repo.index
         index.read()
@@ -166,19 +177,23 @@ class Execution:
         tree = index.write_tree()
         author = pygit2.Signature("bsqbm", "bsqbm@experiment.example.org")
         commiter = author
-        oid = repo.create_commit("HEAD", author, commiter, "init for bsqbm", tree, [])
-        #self.logger.debug("try to creat tag for {} {} {} {}".format(type(oid), oid, str(oid), str(oid)[:5]))
-        #repo.create_tag("init-graph", str(oid)[:5], pygit2.GIT_OBJ_BLOB, author, "init-graph\n") # git tag init-graph
+        oid = repo.create_commit(
+            "HEAD", author, commiter, "init for bsqbm", tree, [])
+        # self.logger.debug(
+        #   "try to creat tag for {} {} {} {}".format(type(oid), oid, str(oid), str(oid)[:5])
+        # )
+        # git tag init-graph
+        # repo.create_tag("init-graph", str(oid)[:5], pygit2.GIT_OBJ_BLOB, author, "init-graph\n")
 
-
-    def run(self, block = False):
+    def run(self, block=False):
 
         self.logger.debug("start scenario {}".format(self.runName))
 
         self.running = True
         self.runQuit()
         self.monitor = MonitorThread()
-        self.monitor.setQuitProcessAndDirectory(self.quitProcess, self.repositoryPath, self.logPath)
+        self.monitor.setQuitProcessAndDirectory(
+            self.quitProcess, self.repositoryPath, self.logPath)
         self.monitor.start()
         time.sleep(20)
         self.runBSBM()
@@ -189,43 +204,52 @@ class Execution:
     def runQuit(self):
         quitArgs = shlex.split(self.quitArgs)
         if self.profiling:
-            quitCommand = ["python", "-m", "cProfile", "-o", os.path.join(self.logPath, "profile_data.pyprof")]
+            quitCommand = ["python", "-m", "cProfile", "-o",
+                           os.path.join(self.logPath, "profile_data.pyprof")]
         else:
             quitCommand = []
-        quitCommand += [self.quitExecutable, "-cm", "localconfig", "-c", os.path.join(self.repositoryPath, "config.ttl"), "-t", self.repositoryPath] + quitArgs
+        quitCommand += [self.quitExecutable, "-cm", "localconfig", "-c", os.path.join(
+            self.repositoryPath, "config.ttl"), "-t", self.repositoryPath] + quitArgs
         self.logger.debug("Start quit: {}".format(quitCommand))
         self.quitProcess = subprocess.Popen(quitCommand)
         self.logger.debug("Quit process is: {}".format(self.quitProcess.pid))
 
     def runBSBM(self):
-        arguments = "{} -runs {} -w {} -dg \"urn:bsbm\" -o {} -ucf usecases/exploreAndUpdate/sparql.txt -udataset dataset_update.nt -u {}".format(
+        arguments = "{} -runs {} -w {} -dg \"urn:bsbm\" -o {} -ucf {} -udataset {} -u {}".format(
             "http://localhost:5000/sparql",
             self.bsbmRuns,
             self.bsbmWarmup,
             os.path.abspath(os.path.join(self.logPath, self.runName + ".xml")),
+            "usecases/exploreAndUpdate/sparql.txt",
+            "dataset_update.nt",
             "http://localhost:5000/sparql"
         )
         self.bsbmArgs = shlex.split(arguments)
-        self.logger.debug("Start BSBM in {} with {}".format(self.bsbmLocation, arguments))
+        self.logger.debug("Start BSBM in {} with {}".format(
+            self.bsbmLocation, arguments))
 
-        self.bsbmProcess = subprocess.Popen(["./testdriver"] + self.bsbmArgs, cwd=self.bsbmLocation)
-        self.logger.debug("BSBM Process ID is: {}".format(self.bsbmProcess.pid))
+        self.bsbmProcess = subprocess.Popen(
+            ["./testdriver"] + self.bsbmArgs, cwd=self.bsbmLocation)
+        self.logger.debug(
+            "BSBM Process ID is: {}".format(self.bsbmProcess.pid))
 
     def __del__(self):
         if self.running:
-            self.logger.debug("Destructor called for {} and {}".format(self.quitProcess.pid, self.bsbmProcess.pid))
+            self.logger.debug("Destructor called for {} and {}".format(
+                self.quitProcess.pid, self.bsbmProcess.pid))
             self.terminate()
 
     def terminate(self):
         self.logger.debug("Terminate has been called on execution")
         if self.running:
             # self.logger.debug(self.mem_usage)
-            #self.memory_log.close()
+            # self.memory_log.close()
             if hasattr(self, "bsbmProcess"):
                 self.terminateProcess(self.bsbmProcess)
             # mv bsbm/run.log $QUIT_EVAL_DIR/$LOGDIR/$RUNDIR-run.log
             if (os.path.exists(os.path.join(self.bsbmLocation, "run.log"))):
-                os.rename(os.path.join(self.bsbmLocation, "run.log"), os.path.join(self.logPath, self.runName + "-run.log"))
+                os.rename(os.path.join(self.bsbmLocation, "run.log"),
+                          os.path.join(self.logPath, self.runName + "-run.log"))
             if hasattr(self, "quitProcess"):
                 self.terminateProcess(self.quitProcess)
             self.logger.debug("Call monitor.stop()")
@@ -242,13 +266,17 @@ class Execution:
             try:
                 process.wait(10)
                 retVal = process.poll()
-                self.logger.debug("Terminated {} (exited with: {})".format(process.pid, retVal))
+                self.logger.debug(
+                    "Terminated {} (exited with: {})".format(process.pid, retVal))
             except subprocess.TimeoutExpired:
                 process.kill()
                 retVal = process.poll()
-                self.logger.debug("Killed {} (exited with: {})".format(process.pid, retVal))
+                self.logger.debug(
+                    "Killed {} (exited with: {})".format(process.pid, retVal))
         else:
-            self.logger.debug("Already exited {} (exited with: {})".format(process.pid, retVal))
+            self.logger.debug(
+                "Already exited {} (exited with: {})".format(process.pid, retVal))
+
 
 class ScenarioReader:
 
@@ -257,7 +285,8 @@ class ScenarioReader:
     def readScenariosFromDir(self, runDir):
         scenarioPath = os.path.join(runDir, "scenario.yml")
         if not os.path.exists(scenarioPath):
-            raise Exception("There is no index of scenarios, looking for {}".format(scenarioPath))
+            raise Exception(
+                "There is no index of scenarios, looking for {}".format(scenarioPath))
 
         stream = open(scenarioPath, "r")
         docs = yaml.safe_load(stream)
@@ -269,7 +298,8 @@ class ScenarioReader:
         generalConfig = {}
         scenarios = []
 
-        resultDirectory = os.path.abspath(os.path.join(basePath, docs["resultDirectory"]))
+        resultDirectory = os.path.abspath(
+            os.path.join(basePath, docs["resultDirectory"]))
         generalConfig["resultDirectory"] = resultDirectory
 
         bsbmLocation = docs["bsbmLocation"]
@@ -284,11 +314,13 @@ class ScenarioReader:
 
         bareRepo = docs["bareRepo"] if "bareRepo" in docs else False
         profiling = docs["profiling"] if "profiling" in docs else False
-        configGarbageCollection = docs["configGarbageCollection"] if "configGarbageCollection" in docs else False
+        configGarbageCollection = docs["configGarbageCollection"] if (
+            "configGarbageCollection") in docs else False
 
-        for repetition in range(1, repetitions+1):
+        for repetition in range(1, repetitions + 1):
             for scenario in docs["scenarios"]:
-                self.logger.debug("scenario items: {}".format(scenario.items()))
+                self.logger.debug(
+                    "scenario items: {}".format(scenario.items()))
                 for runName, runConfig in scenario.items():
 
                     runName = runName + "-" + str(repetition)
@@ -300,17 +332,26 @@ class ScenarioReader:
                     execution.bsbmWarmup = bsbmWarmup
 
                     # these parameters are individual per scenario
-                    runDirectory = os.path.join(resultDirectory, "quit-" + runName)
-                    getScenarioPath = self.__getScenarioPathFunction("quit-" + runName, runDirectory, runConfig)
+                    runDirectory = os.path.join(
+                        resultDirectory, "quit-" + runName)
+                    getScenarioPath = self.__getScenarioPathFunction(
+                        "quit-" + runName, runDirectory, runConfig)
 
                     execution.runName = "quit-" + runName
-                    execution.quitExecutable = runConfig["quitExecutable"] if "quitExecutable" in runConfig else quitExecutable
-                    execution.repositoryPath = getScenarioPath("repositoryBasePath", repositoryBasePath)
-                    execution.logPath = getScenarioPath("logBasePath", logBasePath)
-                    execution.quitArgs = runConfig["storeArguments"] if "storeArguments" in runConfig else ""
-                    execution.bareRepo = runConfig["bareRepo"] if "bareRepo" in runConfig else bareRepo
-                    execution.profiling = runConfig["profiling"] if "profiling" in runConfig else profiling
-                    execution.configGarbageCollection = runConfig["configGarbageCollection"] if "configGarbageCollection" in runConfig else configGarbageCollection
+                    execution.quitExecutable = runConfig[
+                        "quitExecutable"] if "quitExecutable" in runConfig else quitExecutable
+                    execution.repositoryPath = getScenarioPath(
+                        "repositoryBasePath", repositoryBasePath)
+                    execution.logPath = getScenarioPath(
+                        "logBasePath", logBasePath)
+                    execution.quitArgs = runConfig["storeArguments"] if (
+                        "storeArguments") in runConfig else ""
+                    execution.bareRepo = runConfig["bareRepo"] if (
+                        "bareRepo") in runConfig else bareRepo
+                    execution.profiling = runConfig["profiling"] if (
+                        "profiling") in runConfig else profiling
+                    execution.configGarbageCollection = runConfig["configGarbageCollection"] if (
+                        "configGarbageCollection") in runConfig else configGarbageCollection
 
                     scenarios.append(execution)
 
@@ -325,9 +366,9 @@ class ScenarioReader:
                 return os.path.abspath(os.path.join(runDirectory, basePath))
         return scenarioPathFunction
 
+
 def main(scenarioPath):
     """Start the BSQBM."""
-
     def signal_handler(signal, frame):
         print('You pressed Ctrl+C!')
         logger.info("Terminated with Ctrl+C")
@@ -341,10 +382,13 @@ def main(scenarioPath):
     stream = open(scenarioPath, "r")
     docs = yaml.safe_load(stream)
 
-    generalConfig, scenarios = ScenarioReader().readScenarios(docs, os.path.dirname(scenarioPath))
+    generalConfig, scenarios = ScenarioReader().readScenarios(
+        docs, os.path.dirname(scenarioPath))
 
     if os.path.exists(generalConfig["resultDirectory"]):
-        logger.error("The result directory ({}) already exists, please provide an empty location".format(generalConfig["resultDirectory"]))
+        logger.error(
+            "The result directory ({}) already exists, please provide a new location".format(
+                generalConfig["resultDirectory"]))
         sys.exit(1)
 
     os.makedirs(generalConfig["resultDirectory"])
@@ -356,7 +400,7 @@ def main(scenarioPath):
         fh.setLevel(logging.DEBUG)
         fh.setFormatter(formatter)
         logger.addHandler(fh)
-        logger.debug('Logfile: '+ logfile)
+        logger.debug('Logfile: ' + logfile)
     except FileNotFoundError:
         logger.error('Logfile not found: ' + logfile)
     except PermissionError:
@@ -367,7 +411,9 @@ def main(scenarioPath):
     runner = BSQBMRunner()
     runner.addExecutionsToQueue(scenarios)
 
-    with open(os.path.join(generalConfig["resultDirectory"], "scenario.yml"), "w") as resultScenario:
+    with open(
+        os.path.join(generalConfig["resultDirectory"], "scenario.yml"), "w"
+    ) as resultScenario:
         docs["resultDirectory"] = "."
         resultScenario.write(yaml.dump(docs))
 
@@ -375,14 +421,15 @@ def main(scenarioPath):
 
     # start benchmarks
     runner.prepare()
-    runner.run(block = True)
+    runner.run(block=True)
+
 
 if __name__ == '__main__':
 
     ch.setLevel(logging.DEBUG)
     logger.addHandler(ch)
 
-    if (len(sys.argv) < 2) :
+    if (len(sys.argv) < 2):
         logger.error("You need to specify a scenario")
         sys.exit(1)
 

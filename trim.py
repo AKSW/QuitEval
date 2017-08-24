@@ -25,12 +25,12 @@ if __name__ == "__main__":
     for line in list(infile):
         newlines.append(line)
         if (line.strip() == "#__SEP__"):
-            print ("separate after", count, "lines")
+            print("separate after", count, "lines")
             if count > maxCount:
                 maxCount = count
             if (not dryCount):
                 if (count > 289):
-                    print ("cut at", 289, "lines")
+                    print("cut at", 289, "lines")
                     outfile.writelines(newlines[:289])
                     outfile.writelines(newlines[-2:])
                 else:
@@ -40,7 +40,7 @@ if __name__ == "__main__":
         elif line.strip() == "":
             pass
         else:
-            count += 1;
+            count += 1
     infile.close()
     outfile.close()
-    print ("max number of statements is", maxCount)
+    print("max number of statements is", maxCount)
