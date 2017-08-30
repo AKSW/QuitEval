@@ -32,7 +32,7 @@ queryLabels = {
     # 8 does not exist
     9: "Query 7",
     10: "Query 8",
-    11: "Query 9",
+    # 11: "Query 9", # is DESCRIBE
     12: "Query 10",
     13: "Query 11",
     14: "Query 12"
