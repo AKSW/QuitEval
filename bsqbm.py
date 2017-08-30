@@ -126,7 +126,6 @@ class Execution:
     logPath = None
     quitArgs = None
     bareRepo = None
-    configGarbageCollection = None
     profiling = False
 
     def prepare(self):
@@ -141,8 +140,6 @@ class Execution:
         self.logger.debug("logPath: {}".format(self.logPath))
         self.logger.debug("args: {}".format(self.quitArgs))
         self.logger.debug("bareRepo: {}".format(self.bareRepo))
-        self.logger.debug("configGarbageCollection: {}".format(
-            self.configGarbageCollection))
         self.logger.debug("profiling: {}".format(self.profiling))
 
         os.makedirs(self.logPath, exist_ok=True)
@@ -314,8 +311,6 @@ class ScenarioReader:
 
         bareRepo = docs["bareRepo"] if "bareRepo" in docs else False
         profiling = docs["profiling"] if "profiling" in docs else False
-        configGarbageCollection = docs["configGarbageCollection"] if (
-            "configGarbageCollection") in docs else False
 
         for repetition in range(1, repetitions + 1):
             for scenario in docs["scenarios"]:
@@ -350,8 +345,6 @@ class ScenarioReader:
                         "bareRepo") in runConfig else bareRepo
                     execution.profiling = runConfig["profiling"] if (
                         "profiling") in runConfig else profiling
-                    execution.configGarbageCollection = runConfig["configGarbageCollection"] if (
-                        "configGarbageCollection") in runConfig else configGarbageCollection
 
                     scenarios.append(execution)
 
