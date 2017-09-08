@@ -110,33 +110,36 @@ class MonitorThread(threading.Thread):
 
 
 class Execution:
-
     logger = logging.getLogger('quit-eval.execution')
 
     running = False
 
     runName = None
-    quitExecutable = None
+    executable = None
     bsbmLocation = None
     bsbmWarmup = None
     bsbmRuns = None
-    repositoryPath = None
     logPath = None
-    quitArgs = None
-    bareRepo = None
+    storeArguments = None
     profiling = False
+
+
+class QuitExecution(Execution):
+
+    repositoryPath = None
+    bareRepo = None
 
     def prepare(self):
 
         self.logger.debug(
             "prepare scenario \"{}\" with configuration:".format(self.runName))
-        self.logger.debug("quit: {}".format(self.quitExecutable))
+        self.logger.debug("quit: {}".format(self.executable))
         self.logger.debug("bsbm: {}".format(self.bsbmLocation))
         self.logger.debug("bsbm config: runs={} warmup={}".format(
             self.bsbmRuns, self.bsbmWarmup))
         self.logger.debug("repositoryPath: {}".format(self.repositoryPath))
         self.logger.debug("logPath: {}".format(self.logPath))
-        self.logger.debug("args: {}".format(self.quitArgs))
+        self.logger.debug("args: {}".format(self.storeArguments))
         self.logger.debug("bareRepo: {}".format(self.bareRepo))
         self.logger.debug("profiling: {}".format(self.profiling))
 
@@ -197,14 +200,14 @@ class Execution:
         self.logger.debug("Run has finished")
 
     def runQuit(self):
-        quitArgs = shlex.split(self.quitArgs)
+        storeArguments = shlex.split(self.storeArguments)
         if self.profiling:
             quitCommand = ["python", "-m", "cProfile", "-o",
                            os.path.join(self.logPath, "profile_data.pyprof")]
         else:
             quitCommand = []
-        quitCommand += [self.quitExecutable, "-cm", "localconfig", "-c", os.path.join(
-            self.repositoryPath, "config.ttl"), "-t", self.repositoryPath] + quitArgs
+        quitCommand += [self.executable, "-cm", "localconfig", "-c", os.path.join(
+            self.repositoryPath, "config.ttl"), "-t", self.repositoryPath] + storeArguments
         self.logger.debug("Start quit: {}".format(quitCommand))
         self.quitProcess = subprocess.Popen(quitCommand)
         self.logger.debug("Quit process is: {}".format(self.quitProcess.pid))
@@ -273,6 +276,10 @@ class Execution:
                 "Already exited {} (exited with: {})".format(process.pid, retVal))
 
 
+class DockerExecution(Execution):
+    pass
+
+
 class ScenarioReader:
 
     logger = logging.getLogger('quit-eval.scenarioreader')
@@ -298,7 +305,7 @@ class ScenarioReader:
         generalConfig["resultDirectory"] = resultDirectory
 
         bsbmLocation = docs["bsbmLocation"]
-        quitExecutable = docs["quitExecutable"]
+        executable = docs["executable"]
 
         repetitions = docs["repetitions"] if "repetitions" in docs else "3"
         bsbmRuns = docs["bsbmRuns"] if "bsbmRuns" in docs else "100"
@@ -319,7 +326,7 @@ class ScenarioReader:
                     runName = runName + "-" + str(repetition)
 
                     # these lines could go into a factory
-                    execution = Execution()
+                    execution = QuitExecution()
                     execution.bsbmLocation = bsbmLocation
                     execution.bsbmRuns = bsbmRuns
                     execution.bsbmWarmup = bsbmWarmup
@@ -331,13 +338,13 @@ class ScenarioReader:
                         "quit-" + runName, runDirectory, runConfig)
 
                     execution.runName = "quit-" + runName
-                    execution.quitExecutable = runConfig[
-                        "quitExecutable"] if "quitExecutable" in runConfig else quitExecutable
+                    execution.executable = runConfig[
+                        "executable"] if "executable" in runConfig else executable
                     execution.repositoryPath = getScenarioPath(
                         "repositoryBasePath", repositoryBasePath)
                     execution.logPath = getScenarioPath(
                         "logBasePath", logBasePath)
-                    execution.quitArgs = runConfig["storeArguments"] if (
+                    execution.storeArguments = runConfig["storeArguments"] if (
                         "storeArguments") in runConfig else ""
                     execution.bareRepo = runConfig["bareRepo"] if (
                         "bareRepo") in runConfig else bareRepo

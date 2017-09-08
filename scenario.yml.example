@@ -1,5 +1,5 @@
 bsbmLocation: "../bsbmtools-0.2/"
-quitExecutable: "quit-store"
+executable: "quit-store"
 repetitions: 2
 bsbmRuns: 100
 bsbmWarmup: 5
@@ -20,7 +20,7 @@ scenarios:
         repositoryBasePath: "/tmp/mnt/"
     }
     - "newFeature": {
-        quitExecutable: "quit-store-with-new-feature"
+        executable: "quit-store-with-new-feature"
     }
     - "baseline": {
         storeArguments: "-nv"
