@@ -1,0 +1,24 @@
+bsbmLocation: "/path/to/bsbmtools-0.2.docker"
+executable: "quit"
+repetitions: 1
+bsbmRuns: 1
+bsbmWarmup: 0
+resultDirectory: "quit.benchmark/"
+repositoryBasePath: "repo"
+logBasePath: "logs"
+bareRepo: false
+profiling: false
+docker: "quit"
+
+scenarios:
+    - "withGC": {
+        storeArguments: "-gc"
+    }
+    - "woGC": {
+    }
+    - "newFeature": {
+        executable: "quit-store-with-new-feature"
+    }
+    - "baseline": {
+        storeArguments: "-nv"
+    }

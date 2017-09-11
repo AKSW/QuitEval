@@ -12,6 +12,8 @@ import psutil
 import threading
 import pygit2
 import logging
+from urllib import parse
+from urllib import request
 
 logger = logging.getLogger('quit-eval')
 logger.setLevel(logging.DEBUG)
@@ -76,7 +78,7 @@ class MonitorThread(threading.Thread):
     def stopped(self):
         return self._stop_event.is_set()
 
-    def setQuitProcessAndDirectory(self, process, repositoryPath, logPath):
+    def setstoreProcessAndDirectory(self, process, repositoryPath, logPath):
         self.process = process
         self.repositoryPath = repositoryPath
         self.logPath = logPath
@@ -122,6 +124,103 @@ class Execution:
     logPath = None
     storeArguments = None
     profiling = False
+
+    def prepare_repository(self, directory):
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+        with open(os.path.join(self.bsbmLocation, "dataset.nt"), 'r') as sourceGraph:
+            with open(os.path.join(directory, "data.nq"), 'w') as targetGraph:
+                for line in sorted(list(sourceGraph)):
+                    targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm> .\n")
+
+        with open(os.path.join(directory, "data.nq.graph"), 'w') as targetGraphDotGraph:
+            targetGraphDotGraph.write("urn:bsbm\n")
+
+
+    def terminate(self):
+        self.logger.debug("Terminate has been called on execution")
+        if self.running:
+            # self.logger.debug(self.mem_usage)
+            # self.memory_log.close()
+            if hasattr(self, "bsbmProcess"):
+                self.terminateProcess(self.bsbmProcess)
+            # mv bsbm/run.log $QUIT_EVAL_DIR/$LOGDIR/$RUNDIR-run.log
+            if (os.path.exists(os.path.join(self.bsbmLocation, "run.log"))):
+                os.rename(os.path.join(self.bsbmLocation, "run.log"),
+                          os.path.join(self.logPath, self.runName + "-run.log"))
+            if hasattr(self, "storeProcess"):
+                self.terminateProcess(self.storeProcess)
+            self.logger.debug("Call monitor.stop()")
+            self.monitor.stop()
+            self.logger.debug("monitor.stop() called")
+            self.monitor.join()
+            self.logger.debug("monitor.join() finished")
+            self.running = False
+
+    def terminateProcess(self, process):
+        retVal = process.poll()
+        if retVal is None:
+            process.terminate()
+            try:
+                process.wait(10)
+                retVal = process.poll()
+                self.logger.debug(
+                    "Terminated {} (exited with: {})".format(process.pid, retVal))
+            except subprocess.TimeoutExpired:
+                process.kill()
+                retVal = process.poll()
+                self.logger.debug(
+                    "Killed {} (exited with: {})".format(process.pid, retVal))
+        else:
+            self.logger.debug(
+                "Already exited {} (exited with: {})".format(process.pid, retVal))
+
+    def __del__(self):
+        if self.running:
+            self.logger.debug("Destructor called for {} and {}".format(
+                self.storeProcess.pid, self.bsbmProcess.pid))
+            self.terminate()
+
+
+class R43plesExecution(Execution):
+
+    repositoryPath = None
+
+    def prepare(self):
+
+        self.logger.debug(
+            "prepare scenario \"{}\" with configuration:".format(self.runName))
+        self.logger.debug("store executable: {}".format(self.executable))
+        self.logger.debug("bsbm: {}".format(self.bsbmLocation))
+        self.logger.debug("bsbm config: runs={} warmup={}".format(
+            self.bsbmRuns, self.bsbmWarmup))
+        self.logger.debug("args: {}".format(self.storeArguments))
+        self.logger.debug("profiling: {}".format(self.profiling))
+        self.logger.debug("repositoryPath: {}".format(self.repositoryPath))
+
+        os.makedirs(self.logPath, exist_ok=True)
+        os.makedirs(self.repositoryPath, exist_ok=True)
+
+        self.prepare_repository(self.repositoryPath)
+
+    def runBSBM(self):
+        arguments = "{} -runs {} -w {} -dg \"urn:bsbm\" -o {} -ucf {} -udataset {} -u {}".format(
+            "http://localhost:8080/r43ples/sparql",
+            self.bsbmRuns,
+            self.bsbmWarmup,
+            os.path.abspath(os.path.join(self.logPath, self.runName + ".xml")),
+            "usecases/exploreAndUpdate/r43ples.sparql.txt",
+            "dataset_update.nt",
+            "http://localhost:8080/r43ples/sparql"
+        )
+        self.bsbmArgs = shlex.split(arguments)
+        self.logger.debug("Start BSBM in {} with {}".format(
+            self.bsbmLocation, arguments))
+
+        self.bsbmProcess = subprocess.Popen(
+            ["./testdriver"] + self.bsbmArgs, cwd=self.bsbmLocation)
+        self.logger.debug(
+            "BSBM Process ID is: {}".format(self.bsbmProcess.pid))
 
 
 class QuitExecution(Execution):
@@ -188,10 +287,10 @@ class QuitExecution(Execution):
         self.logger.debug("start scenario {}".format(self.runName))
 
         self.running = True
-        self.runQuit()
+        self.runStore()
         self.monitor = MonitorThread()
-        self.monitor.setQuitProcessAndDirectory(
-            self.quitProcess, self.repositoryPath, self.logPath)
+        self.monitor.setstoreProcessAndDirectory(
+            self.storeProcess, self.repositoryPath, self.logPath)
         self.monitor.start()
         time.sleep(20)
         self.runBSBM()
@@ -199,7 +298,21 @@ class QuitExecution(Execution):
             self.bsbmProcess.wait()
         self.logger.debug("Run has finished")
 
-    def runQuit(self):
+    def getStoreCommand(
+        self,
+        target=None,
+        mode='localconfig',
+        config=None
+    ):
+        storeArguments = shlex.split(self.storeArguments)
+        if not target:
+            target = self.repositoryPath
+        if not config:
+            config = os.path.join(self.repositoryPath, 'config.ttl')
+
+        return [self.executable, "-cm", mode, "-c", config, "-t", target] + storeArguments
+
+    def runStore(self):
         storeArguments = shlex.split(self.storeArguments)
         if self.profiling:
             quitCommand = ["python", "-m", "cProfile", "-o",
@@ -209,8 +322,8 @@ class QuitExecution(Execution):
         quitCommand += [self.executable, "-cm", "localconfig", "-c", os.path.join(
             self.repositoryPath, "config.ttl"), "-t", self.repositoryPath] + storeArguments
         self.logger.debug("Start quit: {}".format(quitCommand))
-        self.quitProcess = subprocess.Popen(quitCommand)
-        self.logger.debug("Quit process is: {}".format(self.quitProcess.pid))
+        self.storeProcess = subprocess.Popen(quitCommand)
+        self.logger.debug("Quit process is: {}".format(self.storeProcess.pid))
 
     def runBSBM(self):
         arguments = "{} -runs {} -w {} -dg \"urn:bsbm\" -o {} -ucf {} -udataset {} -u {}".format(
@@ -218,7 +331,7 @@ class QuitExecution(Execution):
             self.bsbmRuns,
             self.bsbmWarmup,
             os.path.abspath(os.path.join(self.logPath, self.runName + ".xml")),
-            "usecases/exploreAndUpdate/sparql.txt",
+            "usecases/exploreAndUpdate/quit.sparql.txt",
             "dataset_update.nt",
             "http://localhost:5000/sparql"
         )
@@ -231,15 +344,124 @@ class QuitExecution(Execution):
         self.logger.debug(
             "BSBM Process ID is: {}".format(self.bsbmProcess.pid))
 
-    def __del__(self):
-        if self.running:
-            self.logger.debug("Destructor called for {} and {}".format(
-                self.quitProcess.pid, self.bsbmProcess.pid))
-            self.terminate()
+
+class QuitDockerExecution(QuitExecution):
+    logger = logging.getLogger('quit-eval.docker_execution')
+
+    running = False
+
+    image = 'aksw/quitstore'
+    portMappings = ['5000:5000']
+    envVariables = []
+
+    def run(self, block=False):
+
+        self.logger.debug("start scenario {}".format(self.runName))
+        self.hostTargetDir = self.repositoryPath
+        self.repositoryPath = '/data'
+
+        self.running = True
+        self.runStore()
+        self.monitor = MonitorThread()
+        self.monitor.setstoreProcessAndDirectory(
+            self.storeProcess, self.repositoryPath, self.logPath)
+        self.monitor.start()
+        time.sleep(20)
+        self.runBSBM()
+        if (block):
+            self.bsbmProcess.wait()
+        self.logger.debug("Run has finished")
+
+    def runStore(self):
+        self.volumeMounts = [self.hostTargetDir + ':' + self.repositoryPath]
+
+        if self.profiling:
+            self.logger.info('Profiling not implemented for docker environment, yet.')
+            dockerCommand = []
+        else:
+            dockerCommand = []
+
+        dockerCommand += ['docker', 'run', '--name', 'bsbm.docker']
+        for portMapping in self.portMappings:
+            dockerCommand += ['-p', portMapping]
+        for volumeMount in self.volumeMounts:
+            dockerCommand += ['-v', volumeMount]
+        for envVariable in self.envVariables:
+            dockerCommand += ['-e', envVariable]
+        dockerCommand += ['-i', '--rm', self.image]
+        dockerCommand += self.getStoreCommand()
+        self.logger.debug("Start quit container: {}".format(dockerCommand))
+        print(' '.join(dockerCommand))
+        self.storeProcess = subprocess.Popen(dockerCommand)
+        self.logger.debug("Quit docker process is: {}".format(self.storeProcess.pid))
+        self.repositoryPath = self.hostTargetDir
+
+
+class R43plesDockerExecution(R43plesExecution):
+    logger = logging.getLogger('quit-eval.docker_execution')
+
+    running = False
+
+    dataDir = ''
+    graph = 'urn:bsbm'
+    image = 'aksw/r43ples'
+    portMappings = ['8080:80']
+    volumeMounts = [dataDir + ':/var/r43ples/data']
+    envVariables = ['GRAPH_URI=' + graph]
+
+    def run(self, block=False):
+
+        self.logger.debug("start scenario {}".format(self.runName))
+        self.hostTargetDir = self.repositoryPath
+        self.repositoryPath = '/var/r43ples/data'
+
+        self.running = True
+        self.runStore()
+        time.sleep(20)
+        self.postPrepare()
+        self.monitor = MonitorThread()
+        self.monitor.setstoreProcessAndDirectory(
+            self.storeProcess, self.repositoryPath, self.logPath)
+        self.monitor.start()
+        time.sleep(5)
+        self.runBSBM()
+        if (block):
+            self.bsbmProcess.wait()
+        self.logger.debug("Run has finished")
+
+    def runStore(self):
+        self.volumeMounts = [self.hostTargetDir + ':' + self.repositoryPath]
+
+        if self.profiling:
+            self.logger.info('Profiling not implemented for docker environment, yet.')
+            dockerCommand = []
+        else:
+            dockerCommand = []
+
+        dockerCommand += ['docker', 'run', '--name', 'bsbm.docker']
+        for portMapping in self.portMappings:
+            dockerCommand += ['-p', portMapping]
+        for volumeMount in self.volumeMounts:
+            dockerCommand += ['-v', volumeMount]
+        for envVariable in self.envVariables:
+            dockerCommand += ['-e', envVariable]
+        dockerCommand += ['--rm', '-t', self.image]
+        self.logger.debug("Start r43ples container: {}".format(' '.join(dockerCommand)))
+        self.storeProcess = subprocess.Popen(dockerCommand)
+        self.logger.debug("R43ples docker process is: {}".format(self.storeProcess.pid))
+        self.repositoryPath = self.hostTargetDir
+
+    def postPrepare(self):
+        arguments = parse.urlencode({'query': 'CREATE GRAPH <urn:bsbm>'})
+        conn = request.urlopen('http://localhost:8080/r43ples/sparql', (arguments.encode('utf-8')))
 
     def terminate(self):
         self.logger.debug("Terminate has been called on execution")
         if self.running:
+            self.logger.debug('Trying to stop container')
+            subprocess.Popen(['docker', 'rm', '-f', 'bsbm.docker'])
+            time.sleep(2)
+            self.logger.debug('Container stopped')
             # self.logger.debug(self.mem_usage)
             # self.memory_log.close()
             if hasattr(self, "bsbmProcess"):
@@ -248,8 +470,8 @@ class QuitExecution(Execution):
             if (os.path.exists(os.path.join(self.bsbmLocation, "run.log"))):
                 os.rename(os.path.join(self.bsbmLocation, "run.log"),
                           os.path.join(self.logPath, self.runName + "-run.log"))
-            if hasattr(self, "quitProcess"):
-                self.terminateProcess(self.quitProcess)
+            if hasattr(self, "storeProcess"):
+                self.terminateProcess(self.storeProcess)
             self.logger.debug("Call monitor.stop()")
             self.monitor.stop()
             self.logger.debug("monitor.stop() called")
@@ -257,27 +479,11 @@ class QuitExecution(Execution):
             self.logger.debug("monitor.join() finished")
             self.running = False
 
-    def terminateProcess(self, process):
-        retVal = process.poll()
-        if retVal is None:
-            process.terminate()
-            try:
-                process.wait(10)
-                retVal = process.poll()
-                self.logger.debug(
-                    "Terminated {} (exited with: {})".format(process.pid, retVal))
-            except subprocess.TimeoutExpired:
-                process.kill()
-                retVal = process.poll()
-                self.logger.debug(
-                    "Killed {} (exited with: {})".format(process.pid, retVal))
-        else:
-            self.logger.debug(
-                "Already exited {} (exited with: {})".format(process.pid, retVal))
-
-
-class DockerExecution(Execution):
-    pass
+    def __del__(self):
+        if self.running:
+            self.logger.debug("Destructor called for {} and {}".format(
+                self.storeProcess.pid, self.bsbmProcess.pid))
+            self.terminate()
 
 
 class ScenarioReader:
@@ -316,6 +522,7 @@ class ScenarioReader:
 
         bareRepo = docs["bareRepo"] if "bareRepo" in docs else False
         profiling = docs["profiling"] if "profiling" in docs else False
+        docker = docs["docker"] if "docker" in docs else False
 
         for repetition in range(1, repetitions + 1):
             for scenario in docs["scenarios"]:
@@ -326,7 +533,13 @@ class ScenarioReader:
                     runName = runName + "-" + str(repetition)
 
                     # these lines could go into a factory
-                    execution = QuitExecution()
+                    if docker == 'r43ples':
+                        execution = R43plesDockerExecution()
+                    elif docker == 'quit':
+                        execution = QuitDockerExecution()
+                    else:
+                        execution = QuitExecution()
+
                     execution.bsbmLocation = bsbmLocation
                     execution.bsbmRuns = bsbmRuns
                     execution.bsbmWarmup = bsbmWarmup

@@ -1,0 +1,15 @@
+bsbmLocation: "/path/to/bsbmtools-0.2.docker"
+executable: "quit"
+repetitions: 1
+bsbmRuns: 1
+bsbmWarmup: 0
+resultDirectory: "r43ples.benchmark/"
+repositoryBasePath: "repo"
+logBasePath: "logs"
+bareRepo: false
+profiling: false
+docker: "r43ples"
+
+scenarios:
+    - "baseline": {
+    }
