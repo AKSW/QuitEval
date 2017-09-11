@@ -12,8 +12,6 @@ import psutil
 import threading
 import pygit2
 import logging
-import FileNotFoundError
-import PermissionError
 
 logger = logging.getLogger('quit-eval')
 logger.setLevel(logging.DEBUG)
@@ -372,8 +370,12 @@ def main(scenarioPath):
 
     signal.signal(signal.SIGINT, signal_handler)
 
-    stream = open(scenarioPath, "r")
-    docs = yaml.safe_load(stream)
+    try:
+        stream = open(scenarioPath, "r")
+        docs = yaml.safe_load(stream)
+    except FileNotFoundError:
+        logger.error('Can not create stream. Path not found: ' + scenarioPath)
+        sys.exit(1)
 
     generalConfig, scenarios = ScenarioReader().readScenarios(
         docs, os.path.dirname(scenarioPath))
