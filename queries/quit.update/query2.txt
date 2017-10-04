@@ -1,0 +1,3 @@
+DELETE WHERE
+{ GRAPH <urn:bsbm> { %Offer% ?p ?o } }
+

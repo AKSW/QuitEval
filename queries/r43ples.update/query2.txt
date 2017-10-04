@@ -1,0 +1,3 @@
+USER "radtke" MESSAGE "BSBM insert data query" 
+DELETE {GRAPH <urn:bsbm> REVISION "master" { ?s ?p ?o } } WHERE
+{GRAPH <urn:bsbm> REVISION "master" { %Offer% ?p ?o . ?s ?p ?o . } FILTER(sameTerm(?s, %Offer%)) }
