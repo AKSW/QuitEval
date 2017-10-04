@@ -1,3 +1,4 @@
+bsbmLocation: "/home/norman/Documents/Arbeit/LEDS/Owncloud/Documents/Arbeit/bsbmtools-0.2.docker"
 bsbmLocation: "/path/to/bsbmtools-0.2.docker"
 executable: "quit"
 repetitions: 1
