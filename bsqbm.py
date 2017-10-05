@@ -550,8 +550,12 @@ class ScenarioReader:
                         container = docker
                     if container == 'r43ples':
                         execution = R43plesDockerExecution()
+                        execution.image = runConfig["image"] if (
+                        "image") in runConfig else ""
                     elif container == 'quit':
                         execution = QuitDockerExecution()
+                        execution.image = runConfig["image"] if (
+                        "image") in runConfig else ""
                     else:
                         execution = QuitExecution()
 
