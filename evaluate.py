@@ -205,6 +205,145 @@ def getQPS(directory):
             bsbm_plot.write(template.render(bsbm_data))
 
 
+def getAQET(directory):
+    """
+    Extract gps and QMpH from bsbm result XML, calculate average and standard deviation
+    """
+    runs = findRuns(directory)
+
+    execSet = []
+    qmph = []
+    for runName, runProperties in runs.items():
+        fileName = os.path.join(directory, runName, "logs", runName + ".xml")
+
+        e = xml.etree.ElementTree.parse(fileName).getroot()
+        subset = {}
+        runProperties["qmph"] = float(e.find('querymix').find('qmph').text)
+        for qu in e.find('queries').findall('query'):
+            nr = qu.get('nr')
+            if qu.find('aqet') is not None:
+                # print(qu.find('qps').text)
+                subset[int(nr)] = float(qu.find('aqet').text)
+        runProperties["queries"] = subset
+
+    print("I've identified the following values for the runs:", runs)
+
+    # https://stackoverflow.com/questions/1241029/how-to-filter-a-dictionary-by-value#1241354
+    # covert runs to list sorted by setup value
+    runs = sorted(
+        runs.items(), key=lambda x: x[1]["setup"] if x[1]["setup"] else "")
+    # group runs by setup value
+    groupedRuns = itertools.groupby(runs, key=lambda x: x[1]["setup"])
+
+    setups = {}
+    for key, group in groupedRuns:
+        runGroup = dict(group)
+        # print(runGroup)
+        setup = {}
+        setupOptions = list(runGroup.values())[0]["setup"]
+
+        # calculate sum
+        for runName, runProperties in runGroup.items():
+            for queryNum, queryQps in runProperties["queries"].items():
+                if queryNum not in setup:
+                    setup[queryNum] = [0, 0, 0]
+                setup[queryNum][0] = setup[queryNum][0] + 1
+                setup[queryNum][1] = setup[queryNum][1] + queryQps
+
+            if "qmph" not in setup:
+                setup["qmph"] = [0, 0, 0]
+            setup["qmph"][0] = setup["qmph"][0] + 1
+            setup["qmph"][1] = setup["qmph"][1] + runProperties["qmph"]
+
+        # print("this setup is:", setup)
+
+        # reduce for average
+        for figure, result in setup.items():
+            avg = result[1] / result[0]
+            setup[figure][1] = avg
+
+        # collect again for variance and standard deviation
+        for runName, runProperties in runGroup.items():
+            for queryNum, queryQps in runProperties["queries"].items():
+                avg = setup[queryNum][1]
+                setup[queryNum][2] = setup[queryNum][2] + \
+                    (queryQps - avg) * (queryQps - avg)
+
+            avg = setup["qmph"][1]
+            setup["qmph"][2] = setup["qmph"][2] + \
+                (runProperties["qmph"] - avg) * (runProperties["qmph"] - avg)
+
+        # reduce for variance and standard deviation
+        for figure, result in setup.items():
+            # variance
+            var = result[2] / result[0]
+            # set standard deviation
+            setup[figure][2] = math.sqrt(var)
+
+        setup["setup"] = setupOptions
+        setup["runs"] = len(runGroup)
+        #print("this setup is:", setup)
+        setups[setupOptions] = setup
+
+    setups = collections.OrderedDict(
+        sorted(setups.items(), key=lambda x: x[0] if x[0] else ""))
+
+    bsbm_qmph_dat = ""
+    print("QMpH")
+    #bsbm_qmph_dat += "\n"
+    for setup, numbers in setups.items():
+        bsbm_qmph_dat += "\"{}\"\t".format(setup)
+        bsbm_qmph_dat += "{} {}\n".format(
+            numbers["qmph"][1], numbers["qmph"][2])
+    #bsbm_qmph_dat += "\n"
+
+    print(bsbm_qmph_dat)
+
+    with open(os.path.join(directory, "bsbm_qmph.dat"), "w") as bsbm_qmph_dat_file:
+        bsbm_qmph_dat_file.write(bsbm_qmph_dat)
+
+    print("Queries")
+    bsbm_dat = "labels\t"
+    for setup in setups.keys():
+        bsbm_dat += "\"{}\" \"{}\"\t".format(setup, setup)
+    bsbm_dat += "\n"
+    for id, label in queryLabels.items():
+        bsbm_dat += "\"{}\"\t".format(label)
+        for numbers in setups.values():
+            # print(numbers)
+            bsbm_dat += "{} {}\t".format(numbers[id][1], numbers[id][2])
+        bsbm_dat += "\n"
+
+    with open(os.path.join(directory, "bsbm_aqet.dat"), "w") as bsbm_dat_file:
+        bsbm_dat_file.write(bsbm_dat)
+
+    # Write gnuplot scripts
+
+    bsbm_data = {
+        "file": 'bsbm_aqet.dat',
+        "file_qmph": 'bsbm_qmph.dat',
+        "scenarios": []
+    }
+
+    column = 0
+    for setup in setups.keys():
+        column += 2
+        if column / 2 > len(colors):
+            print("WARNING: colors can not be distinguished")
+        bsbm_data["scenarios"].append({"setup": setup, "column": column, "color": colors[int(
+            math.floor((column - 1) / 2)) % len(colors)]})
+
+    with open(os.path.join(basedir, "stuff", 'bsbm.plot.tpl'), "r") as bsbm_tpl:
+        template = Template(bsbm_tpl.read())
+        with open(os.path.join(directory, "bsbm_aqet.plot"), "w") as bsbm_plot:
+            bsbm_plot.write(template.render(bsbm_data))
+
+    with open(os.path.join(basedir, "stuff", 'bsbm_qmph.plot.tpl'), "r") as bsbm_tpl:
+        template = Template(bsbm_tpl.read())
+        with open(os.path.join(directory, "bsbm_qmph.plot"), "w") as bsbm_plot:
+            bsbm_plot.write(template.render(bsbm_data))
+
+
 def alignCommitsForAllScenarios(runDir):
 
     generalConfig, scenarios = ScenarioReader().readScenariosFromDir(runDir)
@@ -394,6 +533,7 @@ if __name__ == "__main__":
         plotForMem(args.directory)
     elif args.bsbm:
         getQPS(args.directory)
+        getAQET(args.directory)
     elif args.align:
         # directory in this case is a specific quit run repo
         alignCommitsForAllScenarios(args.directory)
