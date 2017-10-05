@@ -419,6 +419,7 @@ class R43plesDockerExecution(R43plesExecution):
         self.runStore()
         time.sleep(20)
         self.postPrepare()
+        time.sleep(2)
         self.monitor = MonitorThread()
         self.monitor.setstoreProcessAndDirectory(
             self.storeProcess, self.repositoryPath, self.logPath)
@@ -533,9 +534,15 @@ class ScenarioReader:
                     runName = runName + "-" + str(repetition)
 
                     # these lines could go into a factory
-                    if docker == 'r43ples':
+                    scenario_docker = runConfig[
+                        "docker"] if "docker" in runConfig else False
+                    if scenario_docker in ['r43ples', 'quit']:
+                        container = scenario_docker
+                    else:
+                        container = docker
+                    if container == 'r43ples':
                         execution = R43plesDockerExecution()
-                    elif docker == 'quit':
+                    elif container == 'quit':
                         execution = QuitDockerExecution()
                     else:
                         execution = QuitExecution()

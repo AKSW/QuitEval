@@ -1,10 +1,9 @@
-bsbmLocation: "/home/norman/Documents/Arbeit/LEDS/Owncloud/Documents/Arbeit/bsbmtools-0.2.docker"
-bsbmLocation: "/path/to/bsbmtools-0.2.docker"
+bsbmLocation: "/path/to/bsbmtools"
 executable: "quit"
 repetitions: 1
 bsbmRuns: 1
 bsbmWarmup: 0
-resultDirectory: "quit.benchmark/"
+resultDirectory: "docker.benchmark/"
 repositoryBasePath: "repo"
 logBasePath: "logs"
 bareRepo: false
@@ -22,4 +21,7 @@ scenarios:
     }
     - "baseline": {
         storeArguments: "-nv"
+    }
+    - "baseline-r4ples": {
+        docker: "r43ples"
     }
