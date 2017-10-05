@@ -1,0 +1,6 @@
+INSERT { GRAPH <urn:bsbm2> { %Offer2% ?p ?o } WHERE
+{GRAPH <urn:bsbm> { %Offer% ?p ?o . }};
+INSERT { GRAPH <urn:bsbm> { %Offer3% ?p ?o } WHERE
+{GRAPH <urn:bsbm> { %Offer% ?p ?o . }};
+DELETE {GRAPH <urn:bsbm> { ?s ?p ?o } } WHERE
+{GRAPH <urn:bsbm> { %Offer% ?p ?o . }}

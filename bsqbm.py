@@ -132,9 +132,9 @@ class Execution:
             with open(os.path.join(directory, "data.nq"), 'w') as targetGraph:
                 for line in sorted(list(sourceGraph)):
                     targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm> .\n")
-
-        with open(os.path.join(directory, "data.nq.graph"), 'w') as targetGraphDotGraph:
-            targetGraphDotGraph.write("urn:bsbm\n")
+            with open(os.path.join(directory, "data2.nq"), 'w') as targetGraph:
+                for line in sorted(list(sourceGraph)):
+                    targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm2> .\n")
 
 
     def terminate(self):
@@ -261,9 +261,15 @@ class QuitExecution(Execution):
             with open(os.path.join(directory, "graph.nq"), 'w') as targetGraph:
                 for line in sorted(list(sourceGraph)):
                     targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm> .\n")
+            with open(os.path.join(directory, "graph2.nq"), 'w') as targetGraph:
+                for line in sorted(list(sourceGraph)):
+                    targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm2> .\n")
 
         with open(os.path.join(directory, "graph.nq.graph"), 'w') as targetGraphDotGraph:
             targetGraphDotGraph.write("urn:bsbm\n")
+
+        with open(os.path.join(directory, "data.nq.graph"), 'w') as targetGraphDotGraph:
+            targetGraphDotGraph.write("urn:bsbm2\n")
 
         index = repo.index
         index.read()
@@ -417,8 +423,10 @@ class R43plesDockerExecution(R43plesExecution):
 
         self.running = True
         self.runStore()
-        time.sleep(20)
-        self.postPrepare()
+        time.sleep(25)
+        self.postPrepare('urn:bsbm')
+        time.sleep(2)
+        self.postPrepare('urn:bsbm2')
         time.sleep(2)
         self.monitor = MonitorThread()
         self.monitor.setstoreProcessAndDirectory(
@@ -452,8 +460,8 @@ class R43plesDockerExecution(R43plesExecution):
         self.logger.debug("R43ples docker process is: {}".format(self.storeProcess.pid))
         self.repositoryPath = self.hostTargetDir
 
-    def postPrepare(self):
-        arguments = parse.urlencode({'query': 'CREATE GRAPH <urn:bsbm>'})
+    def postPrepare(self, graphuri):
+        arguments = parse.urlencode({'query': 'CREATE GRAPH <' + graphuri + '>'})
         conn = request.urlopen('http://localhost:8080/r43ples/sparql', (arguments.encode('utf-8')))
 
     def terminate(self):
