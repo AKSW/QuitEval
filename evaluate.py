@@ -207,7 +207,7 @@ def getQPS(directory):
 
 def getAQET(directory):
     """
-    Extract gps and QMpH from bsbm result XML, calculate average and standard deviation
+    Extract aqet and QMpH from bsbm result XML, calculate average and standard deviation
     """
     runs = findRuns(directory)
 
@@ -333,7 +333,7 @@ def getAQET(directory):
         bsbm_data["scenarios"].append({"setup": setup, "column": column, "color": colors[int(
             math.floor((column - 1) / 2)) % len(colors)]})
 
-    with open(os.path.join(basedir, "stuff", 'bsbm.plot.tpl'), "r") as bsbm_tpl:
+    with open(os.path.join(basedir, "stuff", 'bsbm_aqet.plot.tpl'), "r") as bsbm_tpl:
         template = Template(bsbm_tpl.read())
         with open(os.path.join(directory, "bsbm_aqet.plot"), "w") as bsbm_plot:
             bsbm_plot.write(template.render(bsbm_data))
