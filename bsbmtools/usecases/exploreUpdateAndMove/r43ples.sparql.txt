@@ -1,0 +1,3 @@
+querymix=queries/r43ples.update
+querymix=queries/r43ples.move
+querymix=queries/r43ples.explore
