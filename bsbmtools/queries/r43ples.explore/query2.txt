@@ -5,7 +5,7 @@ PREFIX dc: <http://purl.org/dc/elements/1.1/>
 
 SELECT ?label ?comment ?producer ?productFeature ?propertyTextual1 ?propertyTextual2 ?propertyTextual3
  ?propertyNumeric1 ?propertyNumeric2 ?propertyTextual4 ?propertyTextual5 ?propertyNumeric4 
-WHERE {
+WHERE { GRAPH <urn:bsbm> REVISION "master" {
     %ProductXYZ% rdfs:label ?label .
     %ProductXYZ% rdfs:comment ?comment .
     %ProductXYZ% bsbm:producer ?p .
@@ -21,4 +21,4 @@ WHERE {
     OPTIONAL { %ProductXYZ% bsbm:productPropertyTextual4 ?propertyTextual4 }
     OPTIONAL { %ProductXYZ% bsbm:productPropertyTextual5 ?propertyTextual5 }
     OPTIONAL { %ProductXYZ% bsbm:productPropertyNumeric4 ?propertyNumeric4 }
-}
+}}

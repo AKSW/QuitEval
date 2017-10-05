@@ -13,7 +13,7 @@ CONSTRUCT {  %OfferXYZ% bsbm-export:product ?productURI .
              %OfferXYZ% bsbm-export:price ?price .
              %OfferXYZ% bsbm-export:deliveryDays ?deliveryDays .
              %OfferXYZ% bsbm-export:validuntil ?validTo } 
-WHERE { %OfferXYZ% bsbm:product ?productURI .
+WHERE { GRAPH <urn:bsbm> REVISION "master" { %OfferXYZ% bsbm:product ?productURI .
         ?productURI rdfs:label ?productlabel .
         %OfferXYZ% bsbm:vendor ?vendorURI .
         ?vendorURI rdfs:label ?vendorname .
@@ -21,4 +21,4 @@ WHERE { %OfferXYZ% bsbm:product ?productURI .
         %OfferXYZ% bsbm:offerWebpage ?offerURL .
         %OfferXYZ% bsbm:price ?price .
         %OfferXYZ% bsbm:deliveryDays ?deliveryDays .
-        %OfferXYZ% bsbm:validTo ?validTo }
+        %OfferXYZ% bsbm:validTo ?validTo }}

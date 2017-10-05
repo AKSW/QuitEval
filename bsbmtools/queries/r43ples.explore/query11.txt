@@ -1,6 +1,6 @@
 SELECT ?property ?hasValue ?isValueOf
 WHERE {
-  { %OfferXYZ% ?property ?hasValue }
+  { GRAPH <urn:bsbm> REVISION "master" { %OfferXYZ% ?property ?hasValue }}
   UNION
-  { ?isValueOf ?property %OfferXYZ% }
+  { GRAPH <urn:bsbm> REVISION "master" { ?isValueOf ?property %OfferXYZ% }}
 }
