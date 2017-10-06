@@ -1,0 +1,3 @@
+querymix=queries/quit.update
+querymix=queries/quit.move
+querymix=queries/quit.explore

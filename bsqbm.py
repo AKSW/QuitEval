@@ -116,6 +116,8 @@ class Execution:
 
     running = False
 
+    usecase = 'exploreAndUpdate'
+    two_graphs = False
     runName = None
     executable = None
     bsbmLocation = None
@@ -133,8 +135,11 @@ class Execution:
                 for line in sorted(list(sourceGraph)):
                     targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm> .\n")
 
-        with open(os.path.join(directory, "data.nq.graph"), 'w') as targetGraphDotGraph:
-            targetGraphDotGraph.write("urn:bsbm\n")
+        if self.two_graphs:
+            with open(os.path.join(self.bsbmLocation, "dataset.nt"), 'r') as sourceGraph:
+                with open(os.path.join(directory, "graph2.nq"), 'w') as targetGraph:
+                    for line in sorted(list(sourceGraph)):
+                        targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm2> .\n")
 
 
     def terminate(self):
@@ -209,7 +214,7 @@ class R43plesExecution(Execution):
             self.bsbmRuns,
             self.bsbmWarmup,
             os.path.abspath(os.path.join(self.logPath, self.runName + ".xml")),
-            "usecases/exploreAndUpdate/r43ples.sparql.txt",
+            os.path.join("usecases", self.usecase, "r43ples.sparql.txt"),
             "dataset_update.nt",
             "http://localhost:8080/r43ples/sparql"
         )
@@ -254,7 +259,6 @@ class QuitExecution(Execution):
         repo = pygit2.init_repository(directory)  # git init $directory
         configttl = os.path.join(os.path.dirname(
             os.path.abspath(__file__)), "stuff", "config.ttl")
-        shutil.copy(configttl, os.path.join(self.repositoryPath, "config.ttl"))
 
         # sed "s/.$/<urn:bsbm> ./g" $BSBM_DIR/dataset.nt | LC_ALL=C sort -u > $REPOSITORY/graph.nq
         with open(os.path.join(self.bsbmLocation, "dataset.nt"), 'r') as sourceGraph:
@@ -269,6 +273,23 @@ class QuitExecution(Execution):
         index.read()
         index.add("graph.nq")
         index.add("graph.nq.graph")
+
+        if self.two_graphs:
+            with open(os.path.join(self.bsbmLocation, "dataset.nt"), 'r') as sourceGraph:
+                with open(os.path.join(directory, "graph2.nq"), 'w') as targetGraph:
+                    for line in sorted(list(sourceGraph)):
+                        targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm2> .\n")
+            with open(os.path.join(directory, "graph2.nq.graph"), 'w') as targetGraphDotGraph:
+                targetGraphDotGraph.write("urn:bsbm2\n")
+
+            index.add("graph2.nq")
+            index.add("graph2.nq.graph")
+
+            configttl = os.path.join(os.path.dirname(
+                os.path.abspath(__file__)), "stuff", "config.two_graphs.ttl")
+
+        shutil.copy(configttl, os.path.join(self.repositoryPath, "config.ttl"))
+
         index.add("config.ttl")
         index.write()
         tree = index.write_tree()
@@ -331,7 +352,7 @@ class QuitExecution(Execution):
             self.bsbmRuns,
             self.bsbmWarmup,
             os.path.abspath(os.path.join(self.logPath, self.runName + ".xml")),
-            "usecases/exploreAndUpdate/quit.sparql.txt",
+            os.path.join("usecases", self.usecase, "quit.sparql.txt"),
             "dataset_update.nt",
             "http://localhost:5000/sparql"
         )
@@ -417,8 +438,10 @@ class R43plesDockerExecution(R43plesExecution):
 
         self.running = True
         self.runStore()
-        time.sleep(20)
-        self.postPrepare()
+        time.sleep(25)
+        self.postPrepare('urn:bsbm')
+        time.sleep(2)
+        self.postPrepare('urn:bsbm2')
         time.sleep(2)
         self.monitor = MonitorThread()
         self.monitor.setstoreProcessAndDirectory(
@@ -452,8 +475,8 @@ class R43plesDockerExecution(R43plesExecution):
         self.logger.debug("R43ples docker process is: {}".format(self.storeProcess.pid))
         self.repositoryPath = self.hostTargetDir
 
-    def postPrepare(self):
-        arguments = parse.urlencode({'query': 'CREATE GRAPH <urn:bsbm>'})
+    def postPrepare(self, graphuri):
+        arguments = parse.urlencode({'query': 'CREATE GRAPH <' + graphuri + '>'})
         conn = request.urlopen('http://localhost:8080/r43ples/sparql', (arguments.encode('utf-8')))
 
     def terminate(self):
@@ -524,6 +547,8 @@ class ScenarioReader:
         bareRepo = docs["bareRepo"] if "bareRepo" in docs else False
         profiling = docs["profiling"] if "profiling" in docs else False
         docker = docs["docker"] if "docker" in docs else False
+        two_graphs = docs["two_graphs"] if "two_graphs" in docs else False
+        usecase = docs["usecase"] if "usecase" in docs else False
 
         for repetition in range(1, repetitions + 1):
             for scenario in docs["scenarios"]:
@@ -536,14 +561,24 @@ class ScenarioReader:
                     # these lines could go into a factory
                     scenario_docker = runConfig[
                         "docker"] if "docker" in runConfig else False
+
                     if scenario_docker in ['r43ples', 'quit']:
                         container = scenario_docker
                     else:
                         container = docker
+
+                    image = runConfig["image"] if ("image") in runConfig else False
+                    tg = runConfig["two_graphs"] if ("two_graphs") in runConfig else False
+                    uc = runConfig["usecase"] if ("usecase") in runConfig else False
+
                     if container == 'r43ples':
                         execution = R43plesDockerExecution()
+                        if image:
+                            execution.image = image
                     elif container == 'quit':
                         execution = QuitDockerExecution()
+                        if image:
+                            execution.image = image
                     else:
                         execution = QuitExecution()
 
@@ -558,6 +593,17 @@ class ScenarioReader:
                         "quit-" + runName, runDirectory, runConfig)
 
                     execution.runName = "quit-" + runName
+
+                    if uc:
+                        execution.usecase = uc
+                    elif usecase:
+                        execution.usecase = usecase
+
+                    if tg:
+                        execution.two_graphs = uc
+                    elif two_graphs:
+                        execution.two_graphs = two_graphs
+
                     execution.executable = runConfig[
                         "executable"] if "executable" in runConfig else executable
                     execution.repositoryPath = getScenarioPath(

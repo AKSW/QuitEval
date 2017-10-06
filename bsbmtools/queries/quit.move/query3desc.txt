@@ -1,0 +1,5 @@
+QueryType=Update
+
+Offer=OfferURI
+Offer2=OfferURI
+Offer3=OfferURI

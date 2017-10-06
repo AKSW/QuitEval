@@ -1,0 +1,7 @@
+USER "radtke" MESSAGE "BSBM update data query" 
+INSERT { GRAPH <urn:bsbm2> REVISION "master" { %Offer2% ?p ?o }} WHERE
+{GRAPH <urn:bsbm> REVISION "master" { %Offer% ?p ?o . }};
+INSERT { GRAPH <urn:bsbm> REVISION "master" { %Offer3% ?p ?o }} WHERE
+{GRAPH <urn:bsbm> REVISION "master" { %Offer% ?p ?o . }};
+DELETE {GRAPH <urn:bsbm> REVISION "master" { ?s ?p ?o }} WHERE
+{GRAPH <urn:bsbm> REVISION "master" { %Offer% ?p ?o . }}

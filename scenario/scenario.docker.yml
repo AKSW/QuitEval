@@ -1,4 +1,5 @@
-bsbmLocation: "/path/to/bsbmtools"
+#bsbmLocation: "/path/to/bsbmtools"
+bsbmLocation: "/home/norman/Documents/Arbeit/LEDS/Owncloud/Documents/Arbeit/bsbmtools-0.2.docker"
 executable: "quit"
 repetitions: 1
 bsbmRuns: 1
@@ -12,6 +13,7 @@ docker: "quit"
 
 scenarios:
     - "withGC": {
+        image: "aksw/quitstore"
         storeArguments: "-gc"
     }
     - "woGC": {
@@ -24,4 +26,5 @@ scenarios:
     }
     - "baseline-r4ples": {
         docker: "r43ples"
+        image: "aksw/r43ples"
     }

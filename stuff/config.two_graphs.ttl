@@ -1,0 +1,16 @@
+@base <http://my.quit.conf/> .
+@prefix quit: <http://quit.aksw.org/> .
+@prefix conf: <http://my.quit.conf/> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+
+<store> a quit:QuitStore ;
+    quit:pathOfGitRepo "." . # Set the path to the repository that contains the files .
+
+<example> a quit:Graph ; # Define a Graph resource for a named graph
+    quit:graphUri <urn:bsbm> ; # Set the URI of named graph
+    quit:isVersioned 1 ; # Defaults to True, future work
+    quit:graphFile "graph.nq" . # Set the filename
+<example2> a quit:Graph ; # Define a Graph resource for a named graph
+    quit:graphUri <urn:bsbm2> ; # Set the URI of named graph
+    quit:isVersioned 1 ; # Defaults to True, future work
+    quit:graphFile "graph2.nq" . # Set the filename
