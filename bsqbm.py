@@ -374,6 +374,40 @@ class QuitExecution(Execution):
         self.logger.debug(
             "BSBM Process ID is: {}".format(self.bsbmProcess.pid))
 
+class QuitOldExecution(QuitExecution):
+
+    def prepare_repository(self, directory):
+        repo = pygit2.init_repository(directory)  # git init $directory
+        configttl = os.path.join(os.path.dirname(
+            os.path.abspath(__file__)), "stuff", "config_old.ttl")
+
+        # sed "s/.$/<urn:bsbm> ./g" $BSBM_DIR/dataset.nt | LC_ALL=C sort -u > $REPOSITORY/graph.nq
+        with open(os.path.join(self.bsbmLocation, "dataset.nt"), 'r') as sourceGraph:
+            with open(os.path.join(directory, "graph.nq"), 'w') as targetGraph:
+                for line in sorted(list(sourceGraph)):
+                    targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm> .\n")
+
+        index = repo.index
+        index.read()
+        index.add("graph.nq")
+
+        shutil.copy(configttl, os.path.join(self.repositoryPath, "config.ttl"))
+
+        index.add("config.ttl")
+        index.write()
+        tree = index.write_tree()
+        author = pygit2.Signature("bsqbm", "bsqbm@experiment.example.org")
+        commiter = author
+        oid = repo.create_commit(
+            "HEAD", author, commiter, "init for bsqbm", tree, [])
+
+    def runStore(self):
+        storeArguments = shlex.split(self.storeArguments)
+        # quit-store --pathspec
+        quitCommand = [self.executable] + storeArguments
+        self.logger.debug("Start quit: {} in {}".format(quitCommand, self.repositoryPath))
+        self.storeProcess = subprocess.Popen(quitCommand, cwd=self.repositoryPath)
+        self.logger.debug("Quit process is: {}".format(self.storeProcess.pid))
 
 class QuitDockerExecution(QuitExecution):
     logger = logging.getLogger('quit-eval.docker_execution')
@@ -571,7 +605,7 @@ class ScenarioReader:
                     scenario_docker = runConfig[
                         "docker"] if "docker" in runConfig else False
 
-                    if scenario_docker in ['r43ples', 'quit']:
+                    if scenario_docker in ['r43ples', 'quit', 'oldquit']:
                         container = scenario_docker
                     else:
                         container = docker
@@ -588,6 +622,8 @@ class ScenarioReader:
                         execution = QuitDockerExecution()
                         if image:
                             execution.image = image
+                    elif container == 'oldquit':
+                        execution = QuitOldExecution()
                     else:
                         execution = QuitExecution()
 
