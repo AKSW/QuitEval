@@ -97,7 +97,16 @@ class MonitorThread(threading.Thread):
             self.logger.debug(
                 "Monitor for {} on {} stopped, reason: process.poll() = {}; self.stopped() = {}"
                 .format(self.process.pid, self.repositoryPath, self.process.poll(), self.stopped()))
+        try:
+            with open(os.path.join(self.logPath, "resources-mem.log"), "a") as reslog:
+                timestamp = float(round(time.time() * 1000) / 1000)
+                mem = float(psProcess.memory_info().rss) / 1024
+                du = self.get_size(self.repositoryPath)
+                reslog.write("{} {} {}\n".format(timestamp, du, mem))
+        except:
+            pass
         self.logger.debug("Monitor Run finished and all resources are closed")
+
 
     def get_size(self, start_path='.'):
         total_size = 0
