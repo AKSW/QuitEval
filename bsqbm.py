@@ -132,6 +132,7 @@ class Execution:
             with open(os.path.join(directory, "data.nq"), 'w') as targetGraph:
                 for line in sorted(list(sourceGraph)):
                     targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm> .\n")
+        with open(os.path.join(self.bsbmLocation, "dataset.nt"), 'r') as sourceGraph:
             with open(os.path.join(directory, "data2.nq"), 'w') as targetGraph:
                 for line in sorted(list(sourceGraph)):
                     targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm2> .\n")
@@ -261,6 +262,7 @@ class QuitExecution(Execution):
             with open(os.path.join(directory, "graph.nq"), 'w') as targetGraph:
                 for line in sorted(list(sourceGraph)):
                     targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm> .\n")
+        with open(os.path.join(self.bsbmLocation, "dataset.nt"), 'r') as sourceGraph:
             with open(os.path.join(directory, "graph2.nq"), 'w') as targetGraph:
                 for line in sorted(list(sourceGraph)):
                     targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm2> .\n")
@@ -268,13 +270,15 @@ class QuitExecution(Execution):
         with open(os.path.join(directory, "graph.nq.graph"), 'w') as targetGraphDotGraph:
             targetGraphDotGraph.write("urn:bsbm\n")
 
-        with open(os.path.join(directory, "data.nq.graph"), 'w') as targetGraphDotGraph:
+        with open(os.path.join(directory, "graph2.nq.graph"), 'w') as targetGraphDotGraph:
             targetGraphDotGraph.write("urn:bsbm2\n")
 
         index = repo.index
         index.read()
         index.add("graph.nq")
         index.add("graph.nq.graph")
+        index.add("graph2.nq")
+        index.add("graph2.nq.graph")
         index.add("config.ttl")
         index.write()
         tree = index.write_tree()
@@ -548,14 +552,17 @@ class ScenarioReader:
                         container = scenario_docker
                     else:
                         container = docker
+
+                    image = runConfig["image"] if ("image") in runConfig else False
+
                     if container == 'r43ples':
                         execution = R43plesDockerExecution()
-                        execution.image = runConfig["image"] if (
-                        "image") in runConfig else ""
+                        if image:
+                            execution.image = image
                     elif container == 'quit':
                         execution = QuitDockerExecution()
-                        execution.image = runConfig["image"] if (
-                        "image") in runConfig else ""
+                        if image:
+                            execution.image = image
                     else:
                         execution = QuitExecution()
 
