@@ -90,8 +90,14 @@ class MonitorThread(threading.Thread):
             psProcess = psutil.Process(self.process.pid)
             while(self.process.poll() is None and not self.stopped()):
                 timestamp = float(round(time.time() * 1000) / 1000)
-                mem = float(psProcess.memory_info().rss) / 1024
-                du = self.get_size(self.repositoryPath)
+                try:
+                    mem = float(psProcess.memory_info().rss) / 1024
+                except Exception as exc:
+                    self.logger.debug("Monitor exception: mem", exc)
+                try:
+                    du = self.get_size(self.repositoryPath)
+                except Exception as exc:
+                    self.logger.debug("Monitor exception: du", exc)
                 reslog.write("{} {} {}\n".format(timestamp, du, mem))
                 time.sleep(1)
             self.logger.debug(
@@ -103,8 +109,8 @@ class MonitorThread(threading.Thread):
                 mem = float(psProcess.memory_info().rss) / 1024
                 du = self.get_size(self.repositoryPath)
                 reslog.write("{} {} {}\n".format(timestamp, du, mem))
-        except:
-            pass
+        except Exception as exc:
+            self.logger.warning("Monitor exception when writing the last line", exc)
         self.logger.debug("Monitor Run finished and all resources are closed")
 
 
