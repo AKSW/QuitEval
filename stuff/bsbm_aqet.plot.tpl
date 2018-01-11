@@ -1,7 +1,7 @@
 set output "bsbm_aqet.pdf"
 set terminal pdf
 
-set ylabel 'queries per second (qps)'
+set ylabel 'average query execution time (aqet)'
 set boxwidth 0.5
 
 #set style data histogram
