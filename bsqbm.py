@@ -88,6 +88,8 @@ class MonitorThread(threading.Thread):
             self.process.pid, self.repositoryPath))
         with open(os.path.join(self.logPath, "resources-mem.log"), "a") as reslog:
             psProcess = psutil.Process(self.process.pid)
+            du = 0
+            mem = 0
             while(self.process.poll() is None and not self.stopped()):
                 timestamp = float(round(time.time() * 1000) / 1000)
                 try:
@@ -97,7 +99,12 @@ class MonitorThread(threading.Thread):
                 try:
                     du = self.get_size(self.repositoryPath)
                 except Exception as exc:
-                    self.logger.debug("Monitor exception: du", exc)
+                    self.logger.debug("Monitor exception: du {}".format(str(exc)))
+                    try:
+                        du = self.get_size(self.repositoryPath)
+                    except Exception as exc:
+                        self.logger.debug("Monitor exception failed again: du {}".format(str(exc)))
+                        self.logger.debug("using old value for du {}".format(str(du)))
                 reslog.write("{} {} {}\n".format(timestamp, du, mem))
                 time.sleep(1)
             self.logger.debug(
@@ -106,11 +113,17 @@ class MonitorThread(threading.Thread):
         try:
             with open(os.path.join(self.logPath, "resources-mem.log"), "a") as reslog:
                 timestamp = float(round(time.time() * 1000) / 1000)
-                mem = float(psProcess.memory_info().rss) / 1024
-                du = self.get_size(self.repositoryPath)
+                try:
+                    mem = float(psProcess.memory_info().rss) / 1024
+                except psutil.NoSuchProcess:
+                    mem = 0
+                try:
+                    du = self.get_size(self.repositoryPath)
+                except Exception as exc:
+                    du = 0
                 reslog.write("{} {} {}\n".format(timestamp, du, mem))
         except Exception as exc:
-            self.logger.warning("Monitor exception when writing the last line", exc)
+            self.logger.warning("Monitor exception when writing the last line: {}".format(str(exc)))
         self.logger.debug("Monitor Run finished and all resources are closed")
 
 
