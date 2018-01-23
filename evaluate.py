@@ -429,12 +429,14 @@ def alignCommits(scenario, runDir):
     return countCommits
 
 
-def alignNumstatsForAllScenarios(runDir):
+def alignNumstatsForAllScenarios(runDir, runName=None):
     generalConfig, scenarios = ScenarioReader().readScenariosFromDir(runDir)
     print(generalConfig)
     print(scenarios)
 
     for scenario in scenarios:
+        if runName is not None and scenario.runName != runName:
+            continue
         alignNumstat(scenario, runDir)
 
 
@@ -525,6 +527,7 @@ if __name__ == "__main__":
     argparser.add_argument('--bsbm', action='store_true')
     argparser.add_argument('--align', action='store_true')
     argparser.add_argument('--alignNumstats', action='store_true')
+    argparser.add_argument('--runName', type=str, default=None)
     argparser.add_argument('directory', default=".", nargs='?', type=str)
 
     args = argparser.parse_args()
@@ -539,6 +542,6 @@ if __name__ == "__main__":
         alignCommitsForAllScenarios(args.directory)
     elif args.alignNumstats:
         # directory in this case is a specific quit run repo
-        alignNumstatsForAllScenarios(args.directory)
+        alignNumstatsForAllScenarios(args.directory, args.runName)
     else:
         argparser.print_help()
