@@ -449,7 +449,9 @@ def alignNumstat(scenario, runDir):
     resourcelog = open(os.path.join(
         runDir, "..", scenario.logPath, "resources-mem.log"), 'r')
     repo = git.Repo(scenario.repositoryPath)
+    print("looking for log")
     log = repo.git.log('--date=raw', '--pretty=format:%cd', '--numstat')
+    print("found log")
 
     header = '"countCommits" "countStatements" "countAdd" "countDelete"'
 
