@@ -429,27 +429,27 @@ def alignCommits(scenario, runDir):
     return countCommits
 
 
-def alignAddDelete(runDir):
+def alignNumstatsForAllScenarios(runDir):
+    generalConfig, scenarios = ScenarioReader().readScenariosFromDir(runDir)
+    print(generalConfig)
+    print(scenarios)
+
+    for scenario in scenarios:
+        alignNumstat(scenario, runDir)
+
+
+def alignNumstat(scenario, runDir):
     """
     This method adds another column to the resource/memory log, containing the number of added and removed lines per commit
     The original input already contains the three columns "timestamp", "repo size", "memory consumption"
     TODO: there might also be some option neccessary, which defines the width of the sliding window
     """
-
-    offset = 0
-    run = os.path.basename(runDir)
-    with open(os.path.join(runDir + "-logs", run + "-run.log"), 'r') as runlogFile:
-        firstLine = runlogFile.readline()
-        s = " ".join(firstLine.split()[0:2])
-        offset = int(time.mktime(datetime.datetime.strptime(
-            s, "%Y-%m-%d %H:%M:%S,%f").timetuple()))
-
-    resourcelog = open(os.path.join(runDir + "-logs", "mem-" + run), 'r')
-    repo = git.Repo(runDir)
+    resourcelog = open(os.path.join(
+        runDir, "..", scenario.logPath, "resources-mem.log"), 'r')
+    repo = git.Repo(scenario.repositoryPath)
     log = repo.git.log('--date=raw', '--pretty=format:%cd', '--numstat')
 
-    print("time", "reposize", "mem", "countCommits",
-          "countStatements", "countAdd", "countDelete")
+    header = '"countCommits" "countStatements" "countAdd" "countDelete"'
 
     log = list(e.split() for e in log.split("\n\n"))
 
@@ -458,31 +458,31 @@ def alignAddDelete(runDir):
     countStatements = 0
     countAdd = 0
     countDelete = 0
-    for line in list(resourcelog):
-        date = line.split()[0]
-        # print title line
-        if date == "time":
-            print(line.strip(), "\"count of commits\"")
-            continue
-        values = line.split()
-        if int(date) > int(logPop[0]):
-            while (int(date) > int(logPop[0])):
-                if log:
-                    countCommits += 1
-                    countAdd = int(logPop[2])
-                    countDelete = int(logPop[3])
-                    countStatements -= countDelete
-                    countStatements += countAdd
-                    print(str(int(values[0]) - offset), values[1], values[2],
-                          countCommits, countStatements, countAdd, countDelete)
-                    logPop = log.pop()
-                    #print(int(date), ">", logPop)
-                    #print(countCommits, date)
-                else:
-                    break
-        else:
-            print(str(int(values[0]) - offset), values[1], values[2],
-                  countCommits, countStatements, countAdd, countDelete)
+    with open(os.path.join(runDir, scenario.runName + "_numstat.dat"), "w") as dat_file:
+        for line in list(resourcelog):
+            date = line.split()[0]
+            # print title line
+            if date == "time":
+                dat_file.write(line.strip() + " " + header)
+                continue
+            if int(date) > int(logPop[0]):
+                while (int(date) > int(logPop[0])):
+                    if log:
+                        countCommits += 1
+                        countAdd = int(logPop[2])
+                        countDelete = int(logPop[3])
+                        countStatements -= countDelete
+                        countStatements += countAdd
+                        dat_file.write(" ".join([str(line), countCommits, countStatements, countAdd,
+                                                 countDelete]))
+                        logPop = log.pop()
+                        # print(int(date), ">", logPop)
+                        # print(countCommits, date)
+                    else:
+                        break
+            else:
+                dat_file.write(" ".join([str(line), countCommits, countStatements, countAdd,
+                                         countDelete]))
 
 
 def plotForMem(directory):
@@ -524,7 +524,7 @@ if __name__ == "__main__":
     argparser.add_argument('--mem', action='store_true')
     argparser.add_argument('--bsbm', action='store_true')
     argparser.add_argument('--align', action='store_true')
-    argparser.add_argument('--alignAD', action='store_true')
+    argparser.add_argument('--alignNumstats', action='store_true')
     argparser.add_argument('directory', default=".", nargs='?', type=str)
 
     args = argparser.parse_args()
@@ -537,8 +537,8 @@ if __name__ == "__main__":
     elif args.align:
         # directory in this case is a specific quit run repo
         alignCommitsForAllScenarios(args.directory)
-    elif args.alignAD:
+    elif args.alignNumstats:
         # directory in this case is a specific quit run repo
-        alignAddDelete(args.directory)
+        alignNumstatsForAllScenarios(args.directory)
     else:
         argparser.print_help()
