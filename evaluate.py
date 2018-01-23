@@ -467,8 +467,8 @@ def alignNumstat(scenario, runDir):
             if date == "time":
                 dat_file.write(line.strip() + " " + header)
                 continue
-            if int(date) > int(logPop[0]):
-                while (int(date) > int(logPop[0])):
+            if float(date) > int(logPop[0]):
+                while (float(date) > int(logPop[0])):
                     if log:
                         countCommits += 1
                         countAdd = int(logPop[2])
