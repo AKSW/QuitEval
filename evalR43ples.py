@@ -6,17 +6,18 @@ import sys
 import pygit2
 import os
 import datetime
-
+import time
 
 class QuitEvalRefQueries:
     logFile = ''
     commits = []
 
     QUERY = """
-        SELECT * WHERE { graph ?g { ?s ?p ?o .}} LIMIT 10"""
+        SELECT * WHERE { graph ?g { ?s ?p ?o . ?o ?pp ?oo .}} LIMIT 10"""
 
-    def __init__(self, endpoint='http://localhost:5000/sparql', repoPath='', logFile='', runs=10):
+    def __init__(self, endpoint='http://localhost:8080/r43ples/sparql', logFile='', runs=10, queryLog=''):
         self.endpoint = endpoint
+        self.queryLog = queryLog
         try:
             response = requests.post(endpoint, data={'query': self.QUERY}, headers={'Accept': 'application/json'})
         except Exception:
@@ -26,11 +27,6 @@ class QuitEvalRefQueries:
             pass
         else:
             raise Exception('Something wrong with sparql endpoint.')
-
-        try:
-            self.repo = pygit2.Repository(repoPath)
-        except Exception:
-            raise Exception('{} is no repository'.format(repoPath))
 
         try:
             with open(logFile, 'w') as f:
@@ -44,37 +40,52 @@ class QuitEvalRefQueries:
             self.runs = runs
         else:
             raise Exception('Expect integer for argument "runs", got {}, {}'.format(runs, type(runs)))
+        try:
+            self.initQueryLog()
+        except Exception:
+            raise Exception('Could not read query log')
 
-        # collect commits
-        commits = []
-        for commit in self.repo.walk(self.repo.head.target, pygit2.GIT_SORT_REVERSE):
-            commits.append(str(commit.id))
-        self.commits = commits
-        print('Found {} commits'.format(len(commits)))
+    def initQueryLog(self):
+        if os.path.isfile(self.queryLog):
+            write = False
+            queries = []
+            query = []
+            with open(self.queryLog, 'r') as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith('Query string:'):
+                        write = True
+                        query = []
+                    elif line.startswith('Query result'):
+                        write = False
+                        queries.append(' '.join(query))
+                    elif write is True:
+                        query.append(line)
 
-    def runBenchmark(self):
-        i = 1
+        print('Found {} queries'.format(len(queries)))
+        self.queries = queries
+
+    def runQueries(self):
         results = []
 
-        while i < self.runs:
-            ref = random.choice(self.commits)
-            start, end = self.postRequest(ref)
+        for query in self.queries:
+            start, end = self.postRequest(query)
+            time.sleep(3.5)
             results.append([str(end - start), str(start), str(end)])
-            i = i + 1
         with open(self.logFile, 'w') as f:
             for line in results:
                 f.write(' '.join(line) + '\n')
-        f.close()
 
-    def postRequest(self, ref):
 
+    def postRequest(self, query):
         start = datetime.datetime.now()
+        print('Executing', query)
         res = requests.post(
-            self.endpoint + '/' + ref,
-            data={'query': self.QUERY},
+            self.endpoint,
+            data={'query': query},
             headers={'Accept': 'application/json'})
         end = datetime.datetime.now()
-        print('Query executed on', ref, res.status_code, res.json())
+        print(res.status_code)
         return start, end
 
 
@@ -88,13 +99,8 @@ def parseArgs(args):
     parser.add_argument(
         '-E', '--endpoint',
         type=str,
-        default='http://localhost:5000/sparql',
+        default='http://localhost:8080/r43ples/sparql',
         help='Link to the SPARQL-Endpoint')
-
-    parser.add_argument(
-        '-R',
-        '--repopath',
-        type=str)
 
     parser.add_argument(
         '-L',
@@ -115,5 +121,5 @@ def parseArgs(args):
 
 if __name__ == '__main__':
     args = parseArgs(sys.argv[1:])
-    bm = QuitEvalRefQueries(args.endpoint, args.repopath, args.logfile, args.runs, args.querylog)
-    bm.runBenchmark()
+    bm = QuitEvalRefQueries(args.endpoint, args.logfile, args.runs, args.querylog)
+    bm.runQueries()

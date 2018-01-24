@@ -485,18 +485,20 @@ class R43plesDockerExecution(R43plesExecution):
 
     running = False
 
-    dataDir = ''
+    containerLoadDataMount = '/var/r43ples/data'
     graph = 'urn:bsbm'
     image = 'aksw/r43ples'
     portMappings = ['8080:80']
-    volumeMounts = [dataDir + ':/var/r43ples/data']
+    volumeMounts = []
     envVariables = ['GRAPH_URI=' + graph]
 
     def run(self, block=False):
 
         self.logger.debug("start scenario {}".format(self.runName))
-        self.hostTargetDir = self.repositoryPath
-        self.repositoryPath = '/var/r43ples/data'
+        self.hostLoadDataDir = self.repositoryPath
+        self.hostTbdDir = os.path.join(self.repositoryPath, '../database')
+        self.containerTbdMount = '/var/r43ples/database'
+        os.makedirs(os.path.join(self.repositoryPath, '../database'))
 
         self.running = True
         self.runStore()
@@ -507,7 +509,7 @@ class R43plesDockerExecution(R43plesExecution):
         time.sleep(2)
         self.monitor = MonitorThread()
         self.monitor.setstoreProcessAndDirectory(
-            self.storeProcess, self.repositoryPath, self.logPath)
+            self.storeProcess, self.hostTbdDir, self.logPath)
         self.monitor.start()
         time.sleep(5)
         self.runBSBM()
@@ -516,7 +518,9 @@ class R43plesDockerExecution(R43plesExecution):
         self.logger.debug("Run has finished")
 
     def runStore(self):
-        self.volumeMounts = [self.hostTargetDir + ':' + self.repositoryPath]
+        self.volumeMounts = [
+            self.hostLoadDataDir + ':' + self.containerLoadDataMount,
+            self.hostTbdDir + ':' + self.containerTbdMount]
 
         if self.profiling:
             self.logger.info('Profiling not implemented for docker environment, yet.')
@@ -535,14 +539,20 @@ class R43plesDockerExecution(R43plesExecution):
         self.logger.debug("Start r43ples container: {}".format(' '.join(dockerCommand)))
         self.storeProcess = subprocess.Popen(dockerCommand)
         self.logger.debug("R43ples docker process is: {}".format(self.storeProcess.pid))
-        self.repositoryPath = self.hostTargetDir
+        # self.repositoryPath = self.hostTargetDir
 
     def postPrepare(self, graphuri):
         arguments = parse.urlencode({'query': 'CREATE GRAPH <' + graphuri + '>'})
         conn = request.urlopen('http://localhost:8080/r43ples/sparql', (arguments.encode('utf-8')))
 
+    def pause(self):
+        programPause = input("Press the <ENTER> key to continue...")
+
     def terminate(self):
         self.logger.debug("Terminate has been called on execution")
+
+        print("Bitte r43ples testen")
+        self.pause()
         if self.running:
             self.logger.debug('Trying to stop container')
             subprocess.Popen(['docker', 'rm', '-f', 'bsbm.docker'])
