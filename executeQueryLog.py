@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
 import psutil
-import logging
-import random
 import argparse
 import requests
 import sys
-import pygit2
 import os
 import datetime
 import time
@@ -16,22 +13,20 @@ class QueryLogExecuter:
     logFile = ''
     commits = []
 
-    QUERY = """
-        SELECT * WHERE { graph ?g { ?s ?p ?o . ?o ?pp ?oo .}} LIMIT 10"""
-
     def __init__(
             self,
             endpoint='http://localhost:8080/r43ples/sparql',
             logFile='execution.log',
             logDir='/var/logs',
             queryLog=''):
+
         self.endpoint = endpoint
         self.queryLog = queryLog
         self.logDir = logDir
         self.logFile = os.path.join(self.logDir, logFile)
 
         try:
-            response = requests.post(endpoint, data={'query': self.QUERY}, headers={'Accept': 'application/json'})
+            response = requests.post(endpoint, data={'query': 'SELECT * WHERE {?s ?p ?o} LIMIT 1'}, headers={'Accept': 'application/json'})
         except Exception:
             raise Exception('Cannot access {}'.endpoint)
 
@@ -39,14 +34,6 @@ class QueryLogExecuter:
             pass
         else:
             raise Exception('Something wrong with sparql endpoint.')
-
-        try:
-            with open(self.logFile, 'w') as f:
-                pass
-            f.close()
-            self.logFile = logFile
-        except Exception:
-            raise Exception('Can\'t write file {}'.format(logFile))
 
         try:
             self.initQueryLog()
@@ -70,16 +57,16 @@ class QueryLogExecuter:
                     elif write is True:
                         query.append(line)
 
-        print('Found {} queries'.format(len(queries)))
+        # print('Found {} queries'.format(len(queries)))
         self.queries = queries
 
     def runQueries(self):
-        logging.basicConfig(format='%(message)s', filename=self.logFile, level=logging.INFO)
         for query in self.queries:
-            start, end = self.postRequest(query)
-            data = [str(end - start), str(start), str(end)]
-            print(' '.join(data))
-            logging.info(' '.join(data))
+            with open(self.logFile, 'a') as executionLog:
+                start, end = self.postRequest(query)
+                data = [str(end - start), str(start), str(end)]
+                print(' '.join(data))
+                executionLog.write(' '.join(data) + '\n')
 
     def postRequest(self, query):
         print('Executing query')
@@ -110,11 +97,10 @@ class MonitorThread(threading.Thread):
     regularly for the stopped() condition.
     """
 
-
-    def __init__(self):
+    def __init__(self, logFile='memory.log', logDir='.'):
+        self.logDir = logDir
+        self.logFile = os.path.join(self.logDir, logFile)
         super(MonitorThread, self).__init__()
-        self.logFile = logFile
-
         self._stop_event = threading.Event()
 
     def stop(self):
@@ -125,54 +111,49 @@ class MonitorThread(threading.Thread):
 
     def setstoreProcessAndDirectory(self, pid, observedDir='.', logDir='var/logs', logFile='memory.log'):
         # self.process = process
+        print(pid, observedDir, logDir, logFile)
         self.PID = pid
         self.observedDir = observedDir
-        self.logDir = logDir
-        self.logFile = logFile
 
     def run(self):
         print("Start monitor on pid: {} in directory: {}".format(self.PID, self.observedDir))
-        logging.basicConfig(
-            format='%(message)s',
-            filename=os.path.join(self.logDir, self.logFile),
-            level=logging.INFO)
         psProcess = psutil.Process(int(self.PID))
         du = 0
         mem = 0
 
         while not self.stopped():
-            timestamp = float(round(time.time() * 1000) / 1000)
-            try:
-                mem = float(psProcess.memory_info().rss) / 1024
-            except Exception as exc:
-                print("Monitor exception: mem", exc)
-            try:
-                du = self.get_size(self.observedDir)
-            except Exception as exc:
-                print("Monitor exception: du {}".format(str(exc)))
+            with open(self.logFile, 'a') as memoryLog:
+                timestamp = float(round(time.time() * 1000) / 1000)
+                try:
+                    mem = float(psProcess.memory_info().rss) / 1024
+                except Exception as exc:
+                    print("Monitor exception: mem", exc)
                 try:
                     du = self.get_size(self.observedDir)
                 except Exception as exc:
-                    self.logger.debug("Monitor exception failed again: du {}".format(str(exc)))
-                    self.logger.debug("using old value for du {}".format(str(du)))
-            reslog.write("{} {} {}\n".format(timestamp, du, mem))
-            time.sleep(1)
+                    print("Monitor exception: du {}".format(str(exc)))
+                    try:
+                        du = self.get_size(self.observedDir)
+                    except Exception as exc:
+                        print("Monitor exception failed again: du {}".format(str(exc)))
+                        print("using old value for du {}".format(str(du)))
+                memoryLog.write("{} {} {}\n".format(timestamp, du, mem))
+                time.sleep(1)
         print("Monitor stopped")
-    try:
-        with open(os.path.join(self.logPath, "resources-mem.log"), "a") as reslog:
-            timestamp = float(round(time.time() * 1000) / 1000)
-            try:
-                mem = float(psProcess.memory_info().rss) / 1024
-            except psutil.NoSuchProcess:
-                mem = 0
-            try:
-                du = self.get_size(self.observedDir)
-            except Exception as exc:
-                du = 0
-            reslog.write("{} {} {}\n".format(timestamp, du, mem))
-    except Exception as exc:
-        print("Monitor exception when writing the last line: {}".format(str(exc)))
-    print("Monitor Run finished and all resources are closed")
+    # print("Monitor Run finished and all resources are closed")
+    # try:
+    #     timestamp = float(round(time.time() * 1000) / 1000)
+    #     try:
+    #         mem = float(psProcess.memory_info().rss) / 1024
+    #     except psutil.NoSuchProcess:
+    #         mem = 0
+    #         try:
+    #             du = self.get_size(self.observedDir)
+    #         except Exception as exc:
+    #             du = 0
+    #             logging.info("{} {} {}\n".format(timestamp, du, mem))
+    #         except Exception as exc:
+    #             print("Monitor exception when writing the last line: {}".format(str(exc)))
 
 
     def get_size(self, start_path='.'):
@@ -187,14 +168,8 @@ class MonitorThread(threading.Thread):
         return total_size / 1024
 
 
-def getProcess(name):
-    pid = getPID(name)
-    process = psutil.Process(int(pid))
-    print(process)
-    return(process)
-
 def getPID(name):
-    return check_output(["pidof", name])
+    return int(check_output(["pidof", name]))
 
 def parseArgs(args):
     parser = argparse.ArgumentParser()
@@ -213,15 +188,14 @@ def parseArgs(args):
 
     parser.add_argument(
         '-O',
-        '--observedDir',
+        '--observeddir',
         default='.',
         help='The directory that should be monitored')
 
     parser.add_argument(
         '-P',
-        '--process',
-        default='java',
-        help='The command name of the process to be monitored')
+        '--processid',
+        help='The process id of the process to be monitored')
 
     parser.add_argument(
         '-Q',
@@ -235,19 +209,20 @@ def parseArgs(args):
 
 if __name__ == '__main__':
     args = parseArgs(sys.argv[1:])
-    now = str(datetime.datetime.now())
+    now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
+    print('Args', args)
+
     exe = QueryLogExecuter(
         endpoint=args.endpoint,
         logDir=args.logdir,
         logFile=now + '_execution.log',
         queryLog=args.querylog)
 
-    mon = MonitorThread()
+    mon = MonitorThread(logDir=args.logdir, logFile=now + '_memory.log')
+
     mon.setstoreProcessAndDirectory(
-        pid=getPID(args.process),
-        observedDir=args.observeddir,
-        logDir=args.logdir,
-        logFile=now + '_memory.log')
+        pid=args.processid,
+        observedDir=args.observeddir)
     mon.start()
     exe.runQueries()
     mon.stop()

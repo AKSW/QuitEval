@@ -18,8 +18,8 @@ class EvalCommits:
 
     def __init__(
             self,
-            endpoint='http://localhost:5000/sparql',
-            repoDir='',
+            endpoint='http://localhost:8080/r43ples/sparql',
+            revisions=10,
             logFile='',
             logDir='/var/logs',
             runs=10):
@@ -37,32 +37,24 @@ class EvalCommits:
         else:
             raise Exception('Something wrong with sparql endpoint.')
 
-        try:
-            self.repo = pygit2.Repository(repoDir)
-        except Exception:
-            raise Exception('{} is no repository'.format(repoDir))
+        if isinstance(revisions, int):
+            self.revisions = revisions
+        else:
+            raise Exception('Expect integer for argument "revisions", got {}, {}'.format(revisions, type(revisions)))
 
         if isinstance(runs, int):
             self.runs = runs
         else:
             raise Exception('Expect integer for argument "runs", got {}, {}'.format(runs, type(runs)))
 
-        # collect commits
-        commits = {}
-        i = 0
-        for commit in self.repo.walk(self.repo.head.target, pygit2.GIT_SORT_REVERSE):
-            commits[i] = (str(commit.id))
-            i += 1
-        self.commits = commits
-        print('Found {} commits'.format(len(commits.items())))
-
     def runBenchmark(self):
         i = 1
-        results = []
+        choices = set([0, self.revisions, self.revisions/4, self.revisions*3/4])
+
 
         while i < self.runs:
             with open(self.logFile, 'a') as executionLog:
-                ref = random.choice(self.commits)
+                ref = random.choice(choices)
                 start, end = self.postRequest(ref)
                 data = [ref, str(end - start), str(start), str(end)]
                 executionLog.write(' '.join(data) + '\n')
@@ -70,10 +62,12 @@ class EvalCommits:
                 i = i + 1
 
     def postRequest(self, ref):
+        query = "SELCET ? WHERE (graph <urn:bsbm> REVISION \"{{}}\" { ?s ?p ?o }} LIMIT 1".format(ref)
+        print(query)
         start = datetime.datetime.now()
         res = requests.post(
-            self.endpoint + '/' + ref,
-            data={'query': self.QUERY},
+            self.endpoint,
+            data={'query': query},
             headers={'Accept': 'application/json'})
         end = datetime.datetime.now()
         # print('Query executed on', ref, res.status_code, res.json())
@@ -85,7 +79,7 @@ def parseArgs(args):
     parser.add_argument(
         '-E', '--endpoint',
         type=str,
-        default='http://localhost:5000/sparql',
+        default='http://localhost:8080/r43ples/sparql',
         help='Link to the SPARQL-Endpoint')
 
     parser.add_argument(
@@ -114,8 +108,9 @@ def parseArgs(args):
 
     parser.add_argument(
         '-R',
-        '--repodir',
-        type=str)
+        '--revisions',
+        type=int,
+        help='The number of the highest known revision number.')
 
     return parser.parse_args()
 
@@ -127,11 +122,11 @@ if __name__ == '__main__':
     bm = EvalCommits(
         endpoint=args.endpoint,
         repoDir=args.repodir,
-        logFile= 'eval.commits.log',
+        logFile= 'eval.revisions.log',
         logDir=args.logdir,
         runs=args.runs)
 
-    mon = MonitorThread(logDir=args.logdir, logFile='memory.commits.log')
+    mon = MonitorThread(logDir=args.logdir, logFile='memory.revisions.log')
 
     mon.setstoreProcessAndDirectory(
         pid=args.processid,
