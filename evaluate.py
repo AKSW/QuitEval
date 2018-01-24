@@ -477,16 +477,16 @@ def alignNumstat(scenario, runDir):
                         countDelete = int(logPop[3])
                         countStatements -= countDelete
                         countStatements += countAdd
-                        dat_file.write(" ".join([str(line), countCommits, countStatements, countAdd,
-                                                 countDelete]))
+                        dat_file.write(" ".join([str(line), str(countCommits), str(countStatements),
+                                                 str(countAdd), str(countDelete)]))
                         logPop = log.pop()
                         # print(int(date), ">", logPop)
                         # print(countCommits, date)
                     else:
                         break
             else:
-                dat_file.write(" ".join([str(line), countCommits, countStatements, countAdd,
-                                         countDelete]))
+                dat_file.write(" ".join([str(line), str(countCommits), str(countStatements),
+                                         str(countAdd), str(countDelete)]))
 
 
 def plotForMem(directory):
