@@ -446,6 +446,14 @@ def alignNumstat(scenario, runDir):
     The original input already contains the three columns "timestamp", "repo size", "memory consumption"
     TODO: there might also be some option neccessary, which defines the width of the sliding window
     """
+    offset = 0
+
+    with open(os.path.join(runDir, "..", scenario.logPath, scenario.runName + "-run.log"), 'r') as runlogFile:
+        firstLine = runlogFile.readline()
+        s = " ".join(firstLine.split()[0:2])
+        offset = int(time.mktime(datetime.datetime.strptime(
+            s, "%Y-%m-%d %H:%M:%S,%f").timetuple()))
+
     resourcelog = open(os.path.join(
         runDir, "..", scenario.logPath, "resources-mem.log"), 'r')
     repo = git.Repo(scenario.repositoryPath)
@@ -457,13 +465,21 @@ def alignNumstat(scenario, runDir):
 
     log = list(e.split() for e in log.split("\n\n"))
 
+    def getAddDelete(logPop, fileName='graph.nq'):
+        for i in range(2, len(logPop), 3):
+            if logPop[i+2] == fileName:
+                return int(logPop[i+0]), int(logPop[i+1])
+
     countCommits = 1
     logPop = log.pop()
+    logTime = 0
     countStatements = 0
     countAdd = 0
     countDelete = 0
+    lastLine = ""
     with open(os.path.join(runDir, scenario.runName + "_numstat.dat"), "w") as dat_file:
         for line in list(resourcelog):
+            lastLine = line
             date = line.split()[0]
             # print title line
             if date == "time":
@@ -472,21 +488,31 @@ def alignNumstat(scenario, runDir):
             if float(date) > int(logPop[0]):
                 while (float(date) > int(logPop[0])):
                     if log:
-                        countCommits += 1
-                        countAdd = int(logPop[2])
-                        countDelete = int(logPop[3])
+                        logTime = int(logPop[0])
+                        countAdd, countDelete = getAddDelete(logPop)
                         countStatements -= countDelete
                         countStatements += countAdd
                         dat_file.write(" ".join([line.strip(), str(countCommits), str(countStatements),
-                                                 str(countAdd), str(countDelete), "\n"]))
+                                                 str(countAdd), str(countDelete), str(logTime), "*\n"]))
                         logPop = log.pop()
+                        countCommits += 1
                         # print(int(date), ">", logPop)
                         # print(countCommits, date)
                     else:
+                        print("no commits left")
                         break
             else:
                 dat_file.write(" ".join([line.strip(), str(countCommits), str(countStatements),
-                                         str(countAdd), str(countDelete), "\n"]))
+                                         str(countAdd), str(countDelete), str(logTime), "\n"]))
+        while log:
+            logTime = int(logPop[0])
+            countAdd, countDelete = getAddDelete(logPop)
+            countStatements -= countDelete
+            countStatements += countAdd
+            dat_file.write(" ".join([lastLine.strip(), str(countCommits), str(countStatements),
+                                     str(countAdd), str(countDelete), str(logTime), "*\n"]))
+            logPop = log.pop()
+            countCommits += 1
 
 
 def plotForMem(directory):
