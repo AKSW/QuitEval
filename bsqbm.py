@@ -393,6 +393,21 @@ class QuitExecution(Execution):
         self.logger.debug(
             "BSBM Process ID is: {}".format(self.bsbmProcess.pid))
 
+
+class UwsgiExecution(QuitExecution):
+
+    def runStore(self):
+        storeArguments = shlex.split(self.storeArguments)
+        arguments = ["-cm", "localconfig", "-c", os.path.join(self.repositoryPath, "config.ttl"),
+                     "-t", self.repositoryPath] + storeArguments
+        argumentString = " ".join(arguments)
+        uwsgiCommand = ["uwsgi", "--http", "0.0.0.0:5000", "-w", self.executable, "--pyargv",
+                        "\"{}\"".format(argumentString)]
+        self.logger.debug("Start quit with uwsgi: {}".format(uwsgiCommand))
+        self.storeProcess = subprocess.Popen(uwsgiCommand)
+        self.logger.debug("Uwsgi process is: {}".format(self.storeProcess.pid))
+
+
 class QuitOldExecution(QuitExecution):
 
     def prepare_repository(self, directory):
@@ -643,6 +658,8 @@ class ScenarioReader:
                             execution.image = image
                     elif container == 'oldquit':
                         execution = QuitOldExecution()
+                    elif container == "uwsgi":
+                        execution = UwsgiExecution()
                     else:
                         execution = QuitExecution()
 
