@@ -616,9 +616,13 @@ class ScenarioReader:
         generalConfig["resultDirectory"] = resultDirectory
 
         bsbmLocation = docs["bsbmLocation"]
-        executable = docs["executable"]
-        wsgimodule = docs["wsgimodule"]
-        pythonpath = docs["pythonpath"]
+        if "executable" in docs:
+            executable = docs["executable"]
+        elif "wsgimodule" in docs and "pythonpath" in docs:
+            wsgimodule = docs["wsgimodule"]
+            pythonpath = docs["pythonpath"]
+        else:
+            raise Exception("Don't now what to run in scenario: {}".format(resultDirectory))
 
         repetitions = docs["repetitions"] if "repetitions" in docs else "3"
         bsbmRuns = docs["bsbmRuns"] if "bsbmRuns" in docs else "100"
