@@ -26,9 +26,9 @@ def compareSets(right, left):
         print("len(left)", ll, "len(right)", lr)
 
         for a in add:
-            sys.stdout.write("+ " + a)
+            sys.stdout.write("+ {}\n".format(a))
         for a in rem:
-            sys.stdout.write("- " + a)
+            sys.stdout.write("- {}\n".format(a))
         return False
 
 
@@ -57,9 +57,8 @@ def forwardAndVerifyStores(repo, store, updateStrings):
             repo.git.checkout(nextcommit)
 
             graphFile = open(args.quitrepo + "/graph.nq", 'r')
-            left = set(filter(lambda line: line.strip(),
-                              set(e + "\n" for e in f.split("\n"))))
-            right = set(filter(lambda line: line.strip(), set(graphFile)))
+            left = set(f.split("\n"))
+            right = set(line.strip() for line in set(graphFile))
             graphFile.close()
 
             if not compareSets(right, left):
