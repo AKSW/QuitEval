@@ -63,6 +63,7 @@ def forwardAndVerifyStores(repo, store, updateStrings):
             graphFile.close()
 
             if not compareSets(right, left):
+                print("update query was: \"{}\"".format(updateStrings))
                 return nextcommit
 
     except Exception as e:
@@ -84,6 +85,7 @@ if __name__ == "__main__":
     argparser.add_argument('querylog', type=str)
     argparser.add_argument('quitrepo', type=str)
     argparser.add_argument('initialdata', type=str)
+    argparser.add_argument('-f', '--force', action='store_true')
 
     args = argparser.parse_args()
 
@@ -93,6 +95,7 @@ if __name__ == "__main__":
         store = rdflib.ConjunctiveGraph()
         store.parse(args.initialdata, format='nquads',
                     publicID='http://localhost:5000/')
+        force_mode = args.force
     except Exception as e:
         print('Something is wrong:', e)
         import traceback
@@ -111,6 +114,8 @@ if __name__ == "__main__":
                 result = forwardAndVerifyStores(repo, store, query)
                 if result:
                     errors.append(result)
+                    if not force_mode:
+                        break
             mode = "garbage"
             query = []
             execType = ""
@@ -123,4 +128,4 @@ if __name__ == "__main__":
     if errors:
         print("Errors where detected in the following commits:", errors)
     else:
-        print("Everythin is fine, all update operations where recorded correctly")
+        print("Everything is fine, all update operations where recorded correctly")
