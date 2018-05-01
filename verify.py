@@ -57,8 +57,8 @@ def forwardAndVerifyStores(repo, store, updateStrings):
             repo.git.checkout(nextcommit)
 
             graphFile = open(args.quitrepo + "/graph.nq", 'r')
-            left = set(f.split("\n"))
-            right = set(line.strip() for line in set(graphFile))
+            left = set(filter(lambda line: line, f.split("\n")))
+            right = set(filter(lambda line: line, line.strip() for line in set(graphFile)))
             graphFile.close()
 
             if not compareSets(right, left):
