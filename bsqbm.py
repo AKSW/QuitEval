@@ -652,7 +652,7 @@ class ScenarioReader:
                     scenario_docker = runConfig[
                         "docker"] if "docker" in runConfig else False
 
-                    if scenario_docker in ['r43ples', 'quit', 'oldquit']:
+                    if scenario_docker in ['r43ples', 'quit', 'oldquit', 'uwsgi']:
                         container = scenario_docker
                     else:
                         container = docker
