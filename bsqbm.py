@@ -148,6 +148,8 @@ class Execution:
     two_graphs = False
     runName = None
     executable = None
+    wsgimodule = None
+    pythonpath = None
     bsbmLocation = None
     bsbmWarmup = None
     bsbmRuns = None
@@ -266,6 +268,8 @@ class QuitExecution(Execution):
         self.logger.debug(
             "prepare scenario \"{}\" with configuration:".format(self.runName))
         self.logger.debug("quit: {}".format(self.executable))
+        self.logger.debug("wsgimodule: {}".format(self.wsgimodule))
+        self.logger.debug("pythonpath: {}".format(self.pythonpath))
         self.logger.debug("bsbm: {}".format(self.bsbmLocation))
         self.logger.debug("bsbm config: runs={} warmup={}".format(
             self.bsbmRuns, self.bsbmWarmup))
@@ -401,8 +405,8 @@ class UwsgiExecution(QuitExecution):
         arguments = ["-cm", "localconfig", "-c", os.path.join(self.repositoryPath, "config.ttl"),
                      "-t", self.repositoryPath] + storeArguments
         argumentString = " ".join(arguments)
-        uwsgiCommand = ["uwsgi", "--http", "0.0.0.0:5000", "-w", self.executable, "--pyargv",
-                        "\"{}\"".format(argumentString)]
+        uwsgiCommand = ["uwsgi", "--http", "0.0.0.0:5000", "--pythonpath", self.pythonpath,
+                        "-w", self.wsgimodule, "--pyargv", "\"{}\"".format(argumentString)]
         self.logger.debug("Start quit with uwsgi: {}".format(uwsgiCommand))
         self.storeProcess = subprocess.Popen(uwsgiCommand)
         self.logger.debug("Uwsgi process is: {}".format(self.storeProcess.pid))
@@ -613,6 +617,8 @@ class ScenarioReader:
 
         bsbmLocation = docs["bsbmLocation"]
         executable = docs["executable"]
+        wsgimodule = docs["wsgimodule"]
+        pythonpath = docs["pythonpath"]
 
         repetitions = docs["repetitions"] if "repetitions" in docs else "3"
         bsbmRuns = docs["bsbmRuns"] if "bsbmRuns" in docs else "100"
@@ -687,6 +693,10 @@ class ScenarioReader:
 
                     execution.executable = runConfig[
                         "executable"] if "executable" in runConfig else executable
+                    execution.wsgimodule = runConfig[
+                        "wsgimodule"] if "wsgimodule" in runConfig else wsgimodule
+                    execution.pythonpath = runConfig[
+                        "pythonpath"] if "pythonpath" in runConfig else pythonpath
                     execution.repositoryPath = getScenarioPath(
                         "repositoryBasePath", repositoryBasePath)
                     execution.logPath = getScenarioPath(
