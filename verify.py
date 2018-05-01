@@ -63,7 +63,7 @@ def forwardAndVerifyStores(repo, store, updateStrings):
             graphFile.close()
 
             if not compareSets(right, left):
-                print("update query was: \"{}\"".format(updateStrings))
+                print("update query was: \"{}\"".format("".join(updateStrings)))
                 return nextcommit
 
     except Exception as e:
