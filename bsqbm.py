@@ -616,6 +616,9 @@ class ScenarioReader:
         generalConfig["resultDirectory"] = resultDirectory
 
         bsbmLocation = docs["bsbmLocation"]
+        executable = None
+        wsgimodule = None
+        pythonpath = None
         if "executable" in docs:
             executable = docs["executable"]
         elif "wsgimodule" in docs and "pythonpath" in docs:
