@@ -406,7 +406,7 @@ class UwsgiExecution(QuitExecution):
                      "-t", self.repositoryPath] + storeArguments
         argumentString = " ".join(arguments)
         uwsgiCommand = ["uwsgi", "--http", "0.0.0.0:5000", "--pythonpath", self.pythonpath,
-                        "-w", self.wsgimodule, "--pyargv", "\"{}\"".format(argumentString)]
+                        "-w", self.wsgimodule, "--pyargv", argumentString]
         self.logger.debug("Start quit with uwsgi: {}".format(uwsgiCommand))
         self.storeProcess = subprocess.Popen(uwsgiCommand)
         self.logger.debug("Uwsgi process is: {}".format(self.storeProcess.pid))
