@@ -398,6 +398,15 @@ class QuitExecution(Execution):
             "BSBM Process ID is: {}".format(self.bsbmProcess.pid))
 
 
+class AdhsExecution(QuitExecution):
+
+    def runStore(self):
+        storeArguments = shlex.split(self.storeArguments)
+        adhsCommand = ["python", self.executable] + storeArguments
+        self.logger.debug("Start adhs: {}".format(adhsCommand))
+        self.storeProcess = subprocess.Popen(adhsCommand)
+        self.logger.debug("Adhs process is: {}".format(self.storeProcess.pid))
+
 class UwsgiExecution(QuitExecution):
 
     def runStore(self):
@@ -405,7 +414,7 @@ class UwsgiExecution(QuitExecution):
         arguments = ["-cm", "localconfig", "-c", os.path.join(self.repositoryPath, "config.ttl"),
                      "-t", self.repositoryPath] + storeArguments
         argumentString = " ".join(arguments)
-        uwsgiCommand = ["uwsgi", "--http", "0.0.0.0:5000", "--pythonpath", self.pythonpath,
+        uwsgiCommand = ["uwsgi", "--http", "0.0.0.0:5000", "-b", "65536", "--pythonpath", self.pythonpath,
                         "-w", self.wsgimodule, "--pyargv", argumentString]
         self.logger.debug("Start quit with uwsgi: {}".format(uwsgiCommand))
         self.storeProcess = subprocess.Popen(uwsgiCommand)
@@ -652,7 +661,7 @@ class ScenarioReader:
                     scenario_docker = runConfig[
                         "docker"] if "docker" in runConfig else False
 
-                    if scenario_docker in ['r43ples', 'quit', 'oldquit', 'uwsgi']:
+                    if scenario_docker in ['r43ples', 'quit', 'oldquit', 'uwsgi', 'adhs']:
                         container = scenario_docker
                     else:
                         container = docker
@@ -673,6 +682,8 @@ class ScenarioReader:
                         execution = QuitOldExecution()
                     elif container == "uwsgi":
                         execution = UwsgiExecution()
+                    elif container == "adhs":
+                        execution = AdhsExecution()
                     else:
                         execution = QuitExecution()
 
