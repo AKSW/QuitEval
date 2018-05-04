@@ -148,6 +148,8 @@ class Execution:
     two_graphs = False
     runName = None
     executable = None
+    wsgimodule = None
+    pythonpath = None
     bsbmLocation = None
     bsbmWarmup = None
     bsbmRuns = None
@@ -266,6 +268,8 @@ class QuitExecution(Execution):
         self.logger.debug(
             "prepare scenario \"{}\" with configuration:".format(self.runName))
         self.logger.debug("quit: {}".format(self.executable))
+        self.logger.debug("wsgimodule: {}".format(self.wsgimodule))
+        self.logger.debug("pythonpath: {}".format(self.pythonpath))
         self.logger.debug("bsbm: {}".format(self.bsbmLocation))
         self.logger.debug("bsbm config: runs={} warmup={}".format(
             self.bsbmRuns, self.bsbmWarmup))
@@ -392,6 +396,30 @@ class QuitExecution(Execution):
             ["./testdriver"] + self.bsbmArgs, cwd=self.bsbmLocation)
         self.logger.debug(
             "BSBM Process ID is: {}".format(self.bsbmProcess.pid))
+
+
+class AdhsExecution(QuitExecution):
+
+    def runStore(self):
+        storeArguments = shlex.split(self.storeArguments)
+        adhsCommand = ["python", self.executable] + storeArguments
+        self.logger.debug("Start adhs: {}".format(adhsCommand))
+        self.storeProcess = subprocess.Popen(adhsCommand)
+        self.logger.debug("Adhs process is: {}".format(self.storeProcess.pid))
+
+class UwsgiExecution(QuitExecution):
+
+    def runStore(self):
+        storeArguments = shlex.split(self.storeArguments)
+        arguments = ["-cm", "localconfig", "-c", os.path.join(self.repositoryPath, "config.ttl"),
+                     "-t", self.repositoryPath] + storeArguments
+        argumentString = " ".join(arguments)
+        uwsgiCommand = ["uwsgi", "--http", "0.0.0.0:5000", "-b", "65536", "--pythonpath", self.pythonpath,
+                        "-w", self.wsgimodule, "--pyargv", argumentString]
+        self.logger.debug("Start quit with uwsgi: {}".format(uwsgiCommand))
+        self.storeProcess = subprocess.Popen(uwsgiCommand)
+        self.logger.debug("Uwsgi process is: {}".format(self.storeProcess.pid))
+
 
 class QuitOldExecution(QuitExecution):
 
@@ -607,7 +635,16 @@ class ScenarioReader:
         generalConfig["resultDirectory"] = resultDirectory
 
         bsbmLocation = docs["bsbmLocation"]
-        executable = docs["executable"]
+        executable = None
+        wsgimodule = None
+        pythonpath = None
+        if "executable" in docs:
+            executable = docs["executable"]
+        elif "wsgimodule" in docs and "pythonpath" in docs:
+            wsgimodule = docs["wsgimodule"]
+            pythonpath = docs["pythonpath"]
+        else:
+            raise Exception("Don't now what to run in scenario: {}".format(resultDirectory))
 
         repetitions = docs["repetitions"] if "repetitions" in docs else "3"
         bsbmRuns = docs["bsbmRuns"] if "bsbmRuns" in docs else "100"
@@ -634,7 +671,7 @@ class ScenarioReader:
                     scenario_docker = runConfig[
                         "docker"] if "docker" in runConfig else False
 
-                    if scenario_docker in ['r43ples', 'quit', 'oldquit']:
+                    if scenario_docker in ['r43ples', 'quit', 'oldquit', 'uwsgi', 'adhs']:
                         container = scenario_docker
                     else:
                         container = docker
@@ -653,6 +690,10 @@ class ScenarioReader:
                             execution.image = image
                     elif container == 'oldquit':
                         execution = QuitOldExecution()
+                    elif container == "uwsgi":
+                        execution = UwsgiExecution()
+                    elif container == "adhs":
+                        execution = AdhsExecution()
                     else:
                         execution = QuitExecution()
 
@@ -680,6 +721,10 @@ class ScenarioReader:
 
                     execution.executable = runConfig[
                         "executable"] if "executable" in runConfig else executable
+                    execution.wsgimodule = runConfig[
+                        "wsgimodule"] if "wsgimodule" in runConfig else wsgimodule
+                    execution.pythonpath = runConfig[
+                        "pythonpath"] if "pythonpath" in runConfig else pythonpath
                     execution.repositoryPath = getScenarioPath(
                         "repositoryBasePath", repositoryBasePath)
                     execution.logPath = getScenarioPath(

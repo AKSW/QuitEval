@@ -5,3 +5,4 @@ pygit2
 PyYAML
 requests
 argparse
+uwsgi
