@@ -65,24 +65,24 @@ class lsbm:
             query = "DELETE DATA {{ {body} }}".format(body=queryBody)
         return query
 
-    def rwbaseGetParent(self):
+    def rwbaseGetParent(self, rwbVirtuoso):
         print("get parent commit")
         query = "prefix prov: <http://www.w3.org/ns/prov#> select ?activity where {graph <urn:rawbase:provenance> {?activity a prov:Activity; prov:atTime ?time}} order by desc(?time) limit 1"
 
-        response = requests.post("http://rawbase.docker:8890/sparql", data={'query': query},
+        response = requests.post(rwbVirtuoso, data={'query': query},
                                  headers={'Accept': 'text/csv'})
 
         if len(response.text.split("\n")) > 0:
             return response.text.split("\n")[1].strip("\"")
         return ""
 
-    def run(self, endpoint, endpointType=None):
+    def run(self, endpoint, endpointType=None, rwbVirtuoso=None):
 
         for query in self.queryList:
             params = {}
 
             if endpointType == "rwb":
-                parent = self.rwbaseGetParent()
+                parent = self.rwbaseGetParent(rwbVirtuoso)
                 params["rwb-version"] = parent
 
             print("exec: {} with params: {}".format(query, params))
@@ -109,6 +109,11 @@ if __name__ == '__main__':
         type=str,
         default=None,
         help='The SPARQL Endpoint type none or "rwb"')
+    parser.add_argument(
+        '--rwb-virtuoso',
+        type=str,
+        default=None,
+        help='The Virtuoso SPARQL Endpoint of R&Wbase')
     parser.add_argument(
         '-b',
         '--baseUri',
@@ -137,4 +142,4 @@ if __name__ == '__main__':
     #lsbm.rwbaseGetParent()
 
     lsbm.prepare(args.numberOfResources)
-    lsbm.run(args.endpoint, args.endpointType)
+    lsbm.run(args.endpoint, args.endpointType, args.rwb_virtuoso)
