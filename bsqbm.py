@@ -397,7 +397,6 @@ class QuitExecution(Execution):
         self.logger.debug(
             "BSBM Process ID is: {}".format(self.bsbmProcess.pid))
 
-
 class AdhsExecution(QuitExecution):
 
     def runStore(self):
@@ -406,6 +405,17 @@ class AdhsExecution(QuitExecution):
         self.logger.debug("Start adhs: {}".format(adhsCommand))
         self.storeProcess = subprocess.Popen(adhsCommand)
         self.logger.debug("Adhs process is: {}".format(self.storeProcess.pid))
+
+class AdhsUwsgiExecution(QuitExecution):
+
+    def runStore(self):
+        storeArguments = shlex.split(self.storeArguments)
+        argumentString = " ".join(storeArguments)
+        adhsCommand = ["uwsgi", "--http", "0.0.0.0:5000", "-b", "65536", "--pythonpath", self.pythonpath,
+                       "-w", self.wsgimodule, "--pyargv", argumentString]
+        self.logger.debug("Start adhs with uwsgi: {}".format(adhsCommand))
+        self.storeProcess = subprocess.Popen(adhsCommand)
+        self.logger.debug("Adhs uwsgi process is: {}".format(self.storeProcess.pid))
 
 class UwsgiExecution(QuitExecution):
 
@@ -671,7 +681,7 @@ class ScenarioReader:
                     scenario_docker = runConfig[
                         "docker"] if "docker" in runConfig else False
 
-                    if scenario_docker in ['r43ples', 'quit', 'oldquit', 'uwsgi', 'adhs']:
+                    if scenario_docker in ['r43ples', 'quit', 'oldquit', 'uwsgi', 'adhs', 'adhs-uwsgi']:
                         container = scenario_docker
                     else:
                         container = docker
@@ -694,6 +704,8 @@ class ScenarioReader:
                         execution = UwsgiExecution()
                     elif container == "adhs":
                         execution = AdhsExecution()
+                    elif container == "adhs-uwsgi":
+                        execution = AdhsUwsgiExecution()
                     else:
                         execution = QuitExecution()
 
