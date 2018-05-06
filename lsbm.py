@@ -67,7 +67,8 @@ class lsbm:
 
     def rwbaseGetParent(self, rwbVirtuoso):
         print("get parent commit")
-        query = "prefix prov: <http://www.w3.org/ns/prov#> select ?activity where {graph <urn:rawbase:provenance> {?activity a prov:Activity; prov:atTime ?time}} order by desc(?time) limit 1"
+        #query = "prefix prov: <http://www.w3.org/ns/prov#> select ?activity where {graph <urn:rawbase:provenance> {?activity a prov:Activity; prov:atTime ?time}} order by desc(?time) limit 1"
+        query = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {graph <urn:rawbase:provenance> {?entity a prov:Entity. ?activity prov:generated ?entity ; prov:atTime ?time}} order by desc(?time) limit 1"
 
         response = requests.post(rwbVirtuoso, data={'query': query},
                                  headers={'Accept': 'text/csv'})
