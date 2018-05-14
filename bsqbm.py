@@ -623,6 +623,12 @@ class R43plesDockerExecution(R43plesExecution):
 class ScenarioReader:
 
     logger = logging.getLogger('quit-eval.scenarioreader')
+    dockerToExecution = {'r43ples': 'R43plesDocker',
+                         'quit': 'QuitDocker',
+                         'oldquit': 'QuitOld',
+                         'uwsgi': 'Uwsgi',
+                         'adhs': 'Adhs',
+                         'adhs-uwsgi': 'AdhsUwsgi'}
 
     def readScenariosFromDir(self, runDir):
         scenarioPath = os.path.join(runDir, "scenario.yml")
@@ -666,6 +672,7 @@ class ScenarioReader:
         bareRepo = docs["bareRepo"] if "bareRepo" in docs else False
         profiling = docs["profiling"] if "profiling" in docs else False
         docker = docs["docker"] if "docker" in docs else False
+        executionType = docs["executionType"] if "executionType" in docs else "Quit"
         two_graphs = docs["two_graphs"] if "two_graphs" in docs else False
         usecase = docs["usecase"] if "usecase" in docs else False
 
@@ -678,36 +685,18 @@ class ScenarioReader:
                     runName = runName + "-" + str(repetition)
 
                     # these lines could go into a factory
-                    scenario_docker = runConfig[
-                        "docker"] if "docker" in runConfig else False
+                    scenario_docker = runConfig["docker"] if "docker" in runConfig else docker
+                    executionType = runConfig["executionType"] if (
+                        "executionType") in runConfig else executionType
 
-                    if scenario_docker in ['r43ples', 'quit', 'oldquit', 'uwsgi', 'adhs', 'adhs-uwsgi']:
-                        container = scenario_docker
-                    else:
-                        container = docker
+                    if scenario_docker in self.dockerToExecution.keys() and executionType is None:
+                        self.logger.info("Please, don't use 'docker' keyword!")
+                        executionType = self.dockerToExecution[scenario_docker]
 
-                    image = runConfig["image"] if ("image") in runConfig else False
                     tg = runConfig["two_graphs"] if ("two_graphs") in runConfig else False
                     uc = runConfig["usecase"] if ("usecase") in runConfig else False
 
-                    if container == 'r43ples':
-                        execution = R43plesDockerExecution()
-                        if image:
-                            execution.image = image
-                    elif container == 'quit':
-                        execution = QuitDockerExecution()
-                        if image:
-                            execution.image = image
-                    elif container == 'oldquit':
-                        execution = QuitOldExecution()
-                    elif container == "uwsgi":
-                        execution = UwsgiExecution()
-                    elif container == "adhs":
-                        execution = AdhsExecution()
-                    elif container == "adhs-uwsgi":
-                        execution = AdhsUwsgiExecution()
-                    else:
-                        execution = QuitExecution()
+                    execution = getattr(sys.modules[__name__], executionType + "Execution")
 
                     execution.bsbmLocation = bsbmLocation
                     execution.bsbmRuns = bsbmRuns
@@ -733,6 +722,7 @@ class ScenarioReader:
 
                     execution.executable = runConfig[
                         "executable"] if "executable" in runConfig else executable
+                    execution.image = runConfig["image"] if "image" in runConfig else None
                     execution.wsgimodule = runConfig[
                         "wsgimodule"] if "wsgimodule" in runConfig else wsgimodule
                     execution.pythonpath = runConfig[
