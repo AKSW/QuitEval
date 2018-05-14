@@ -762,7 +762,7 @@ class ScenarioReader:
         return scenarioPathFunction
 
 
-def main(scenarioPath):
+def main(scenarioPath, scenarioReader, runner):
     """Start the BSQBM."""
     def signal_handler(signal, frame):
         print('You pressed Ctrl+C!')
@@ -781,7 +781,7 @@ def main(scenarioPath):
         logger.error('Can not create stream. Path not found: ' + scenarioPath)
         sys.exit(1)
 
-    generalConfig, scenarios = ScenarioReader().readScenarios(
+    generalConfig, scenarios = scenarioReader.readScenarios(
         docs, os.path.dirname(scenarioPath))
 
     if os.path.exists(generalConfig["resultDirectory"]):
@@ -807,7 +807,6 @@ def main(scenarioPath):
 
     logger.info("Use scenario configuration from: {}".format(scenarioPath))
 
-    runner = BSQBMRunner()
     runner.addExecutionsToQueue(scenarios)
 
     with open(
@@ -833,4 +832,4 @@ if __name__ == '__main__':
         sys.exit(1)
 
     scenarioPath = sys.argv[1]
-    main(scenarioPath)
+    main(scenarioPath, ScenarioReader(), BSQBMRunner())
