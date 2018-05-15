@@ -131,11 +131,17 @@ if __name__ == '__main__':
         logDir=args.logdir,
         runs=args.runs)
 
-    mon = MonitorThread(logDir=args.logdir, logFile='memory.commits.log')
+    if (args.processid):
+        mon = MonitorThread(logDir=args.logdir, logFile='memory.commits.log')
 
-    mon.setstoreProcessAndDirectory(
-        pid=args.processid,
-        observedDir=args.observeddir)
-    mon.start()
+        mon.setstoreProcessAndDirectory(
+            pid=args.processid,
+            observedDir=args.observeddir)
+        mon.start()
+
+    print('Starting benchmark')
     bm.runBenchmark()
-    mon.stop()
+    print('Benchmark finished')
+
+    if (args.processid):
+        mon.stop()

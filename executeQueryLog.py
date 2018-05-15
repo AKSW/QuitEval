@@ -218,11 +218,17 @@ if __name__ == '__main__':
         logFile=now + '_execution.log',
         queryLog=args.querylog)
 
-    mon = MonitorThread(logDir=args.logdir, logFile=now + '_memory.log')
+    if args.processid:
+        mon = MonitorThread(logDir=args.logdir, logFile=now + '_memory.log')
 
-    mon.setstoreProcessAndDirectory(
-        pid=args.processid,
-        observedDir=args.observeddir)
-    mon.start()
+        mon.setstoreProcessAndDirectory(
+            pid=args.processid,
+            observedDir=args.observeddir)
+        mon.start()
+
+    print('Starting Benchmark')
     exe.runQueries()
-    mon.stop()
+    print('Benchmark finished')
+
+    if args.processid:
+        mon.stop()

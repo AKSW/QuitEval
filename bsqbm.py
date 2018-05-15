@@ -696,7 +696,7 @@ class ScenarioReader:
                     tg = runConfig["two_graphs"] if ("two_graphs") in runConfig else False
                     uc = runConfig["usecase"] if ("usecase") in runConfig else False
 
-                    execution = getattr(sys.modules[__name__], executionType + "Execution")
+                    execution = getattr(sys.modules[__name__], executionType + "Execution")()
 
                     execution.bsbmLocation = bsbmLocation
                     execution.bsbmRuns = bsbmRuns
@@ -705,7 +705,7 @@ class ScenarioReader:
                     # these parameters are individual per scenario
                     runDirectory = os.path.join(
                         resultDirectory, "quit-" + runName)
-                    getScenarioPath = self.__getScenarioPathFunction(
+                    getScenarioPath = self.getScenarioPathFunction(
                         "quit-" + runName, runDirectory, runConfig)
 
                     execution.runName = "quit-" + runName
@@ -722,7 +722,8 @@ class ScenarioReader:
 
                     execution.executable = runConfig[
                         "executable"] if "executable" in runConfig else executable
-                    execution.image = runConfig["image"] if "image" in runConfig else None
+                    if "image" in runConfig:
+                        execution.image = runConfig["image"]
                     execution.wsgimodule = runConfig[
                         "wsgimodule"] if "wsgimodule" in runConfig else wsgimodule
                     execution.pythonpath = runConfig[
@@ -742,7 +743,7 @@ class ScenarioReader:
 
         return generalConfig, scenarios
 
-    def __getScenarioPathFunction(self, runName, runDirectory, runConfig):
+    def getScenarioPathFunction(self, runName, runDirectory, runConfig):
         def scenarioPathFunction(key, default):
             basePath = runConfig[key] if key in runConfig else default
             if os.path.isabs(basePath):

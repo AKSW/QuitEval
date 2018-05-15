@@ -121,16 +121,22 @@ if __name__ == '__main__':
 
     bm = EvalCommits(
         endpoint=args.endpoint,
-        repoDir=args.repodir,
-        logFile= 'eval.revisions.log',
+        revisions=args.revisions,
+        logFile='eval.revisions.log',
         logDir=args.logdir,
         runs=args.runs)
 
-    mon = MonitorThread(logDir=args.logdir, logFile='memory.revisions.log')
+    if args.processid:
+        mon = MonitorThread(logDir=args.logdir, logFile='memory.revisions.log')
 
-    mon.setstoreProcessAndDirectory(
-        pid=args.processid,
-        observedDir=args.observeddir)
-    mon.start()
+        mon.setstoreProcessAndDirectory(
+            pid=args.processid,
+            observedDir=args.observeddir)
+        mon.start()
+
+    print('Starting Benchmark')
     bm.runBenchmark()
-    mon.stop()
+    print('Benchmark finished')
+
+    if args.processid:
+        mon.stop()

@@ -3,10 +3,13 @@
 import logging
 import sys
 import os
-from bsqbm import Execution, ScenarioReader, BSQBMRunner, QuitExecution, main as bsqbmMain
+import shlex
+import subprocess
+from bsqbm import Execution, ScenarioReader, BSQBMRunner, QuitDockerExecution, QuitExecution, main as bsqbmMain
+from bsqbm import R43plesExecution, R43plesDockerExecution
 
 
-logger = logging.getLogger('quit-eval-randomaccess')
+logger = logging.getLogger('quit-ra')
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -22,34 +25,86 @@ class RARunner(BSQBMRunner):
 
 
 class RandomAccessExecution(Execution):
+    """Execute Random Access Queries or a BSBM Query Log on supported Backends."""
+    logger = logging.getLogger('quit-ra.execution')
+    default_endpoints = {'quit': 'http://localhost:5000/sparql',
+                         'r43ples': 'http://localhost:8080/r43ples/sparql'}
+
     def runBSBM(self):
-        if self.uc == 'RA':
-            self.runRandomAccess
-        elif self.uc == 'QL':
-            self.runQueryLog
+        if self.evalMode.lower() in ['ra', 'randomaccess', 'random-access']:
+            self.runRandomAccess()
+        elif self.evalMode.lower() in ['ql', 'querylog', 'query-log']:
+            self.runQueryLog()
 
     def runQueryLog(self):
-        pass
+        arguments = "--endpoint {} --logdir {} --querylog {}".format(
+            self.default_endpoints[self.platform],  # endpoint
+            os.path.abspath(os.path.join(self.logPath, self.runName)),  # log dir
+            self.bsbmQueryLogFile)  # query log file
+        executable = './executeQueryLog.py'
+
+        self.arguments = shlex.split(arguments)
+        self.logger.debug("Start RASBM ({}) for {} with {}".format(
+            'Random Access (' + executable + ')', self.platform, arguments))
+
+        self.bsbmProcess = subprocess.Popen(
+            [executable] + self.arguments)
 
     def runRandomAccess(self):
-        pass
+
+        if self.platform == 'quit':
+            arguments = "--endpoint {} --runs {} --logdir {} --repodir {}".format(
+                self.default_endpoints[self.platform],  # endpoint
+                self.rasbmRuns,  # number of queries
+                os.path.abspath(os.path.join(self.logPath, self.runName)),  # log dir
+                self.repoDir)  # repodir
+            executable = './evalCommits.py'
+        elif self.platform == 'r43ples':
+            arguments = "--endpoint {} --runs {} --revisions {} --logdir {}".format(
+                self.default_endpoints[self.platform],  # endpoint
+                self.rasbmRuns,  # number of queries
+                self.rasbmRevisions,  # max number of r43ples revision
+                os.path.abspath(os.path.join(self.logPath, self.runName)))  # log dir
+            executable = './evalRevisions.py'
+
+        self.arguments = shlex.split(arguments)
+        self.logger.debug("Start RASBM ({}) for {} with {}".format(
+            'Random Access (' + executable + ')', self.platform, arguments))
+
+        self.bsbmProcess = subprocess.Popen(
+            [executable] + self.arguments)
+        logger.info(self.bsbmProcess)
 
 
 class RaQuitExecution(RandomAccessExecution, QuitExecution):
-    def runRandomAccess(self):
-        pass
+    pass
+
+
+class RaR43plesExecution(RandomAccessExecution, R43plesDockerExecution):
+    pass
 
 
 class RaQuitDockerExecution(RandomAccessExecution, QuitDockerExecution):
-    def runRandomAccess(self):
-        pass
+    pass
+
+
+class RaR43plesDockerExecution(RandomAccessExecution, R43plesDockerExecution):
+    pass
 
 
 class RaScenarioReader(ScenarioReader):
+    logger = logging.getLogger('ra-quit-eval.scenarioreader')
+
     def readScenarios(self, docs, basePath):
 
         generalConfig = {}
         scenarios = []
+
+        rasbmMode = {'r43ples': 'r43ples',
+                     'r43plesdocker': 'r43ples',
+                     'quit': 'quit',
+                     'quitdocker': 'quit',
+                     'uwsgi': 'quit'}
 
         resultDirectory = os.path.abspath(
             os.path.join(basePath, docs["resultDirectory"]))
@@ -66,6 +121,15 @@ class RaScenarioReader(ScenarioReader):
             pythonpath = docs["pythonpath"]
         else:
             raise Exception("Don't now what to run in scenario: {}".format(resultDirectory))
+
+        # New features of rasbm
+        bsbmQueryLogFile = docs["bsbmQueryLogFile"] if "bsbmQueryLogFile" in docs else None
+        evalMode = docs["evalMode"] if "evalMode" in docs else "ra"
+        repoDir = docs["repoDir"] if "repoDir" in docs else None
+        rasbmRuns = docs["rasbmRuns"] if "rasbmRuns" in docs else 100
+        rasbmRevisions = docs["rasbmRevisions"] if "rasbmRevisions" in docs else 100
+        if "executionType" in docs:
+            platform = rasbmMode[docs["executionType"].lower()]
 
         repetitions = docs["repetitions"] if "repetitions" in docs else "3"
         bsbmRuns = docs["bsbmRuns"] if "bsbmRuns" in docs else "100"
@@ -101,7 +165,7 @@ class RaScenarioReader(ScenarioReader):
                     tg = runConfig["two_graphs"] if ("two_graphs") in runConfig else False
                     uc = runConfig["usecase"] if ("usecase") in runConfig else False
 
-                    execution = getattr(sys.modules[__name__], executionType + "Execution")
+                    execution = getattr(sys.modules[__name__], 'Ra' + executionType + "Execution")()
 
                     execution.bsbmLocation = bsbmLocation
                     execution.bsbmRuns = bsbmRuns
@@ -110,7 +174,7 @@ class RaScenarioReader(ScenarioReader):
                     # these parameters are individual per scenario
                     runDirectory = os.path.join(
                         resultDirectory, "quit-" + runName)
-                    getScenarioPath = self.__getScenarioPathFunction(
+                    getScenarioPath = self.getScenarioPathFunction(
                         "quit-" + runName, runDirectory, runConfig)
 
                     execution.runName = "quit-" + runName
@@ -125,9 +189,29 @@ class RaScenarioReader(ScenarioReader):
                     elif two_graphs:
                         execution.two_graphs = two_graphs
 
+                    # New RA features
+                    execution.bsbmQueryLogFile = runConfig[
+                        "bsbmQueryLogFile"] if "bsbmQueryLogFile" in runConfig else bsbmQueryLogFile
+                    execution.repoDir = runConfig[
+                        "repoDir"] if "repoDir" in runConfig else None
+                    execution.evalMode = runConfig[
+                        "evalMode"] if "evalMode" in runConfig else evalMode
+                    execution.rasbmRuns = runConfig[
+                        "rasbmRuns"] if "rasbmRuns" in runConfig else rasbmRuns
+                    execution.rasbmRevisions = runConfig[
+                        "rasbmRevisions"] if "rasbmRevisions" in runConfig else rasbmRevisions
                     execution.executable = runConfig[
                         "executable"] if "executable" in runConfig else executable
-                    execution.image = runConfig["image"] if "image" in runConfig else None
+                    if "executionType" in runConfig:
+                        execution.platform = rasbmMode[runConfig["executionType"].lower()]
+                    else:
+                        if platform is None:
+                            logger.error('We need to know which store we use. Exiting')
+                            sys.exit()
+                        execution.platform = platform
+
+                    if "image" in runConfig:
+                        execution.image = runConfig["image"]
                     execution.wsgimodule = runConfig[
                         "wsgimodule"] if "wsgimodule" in runConfig else wsgimodule
                     execution.pythonpath = runConfig[
@@ -146,7 +230,6 @@ class RaScenarioReader(ScenarioReader):
                     scenarios.append(execution)
 
         return generalConfig, scenarios
-
 
 
 if __name__ == '__main__':
