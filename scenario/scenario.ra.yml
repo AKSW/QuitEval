@@ -1,0 +1,30 @@
+bsbmLocation: "/home/norman/Documents/Arbeit/LEDS/Owncloud/Documents/Arbeit/bsbmtools.r43ples"
+executable: "quit"
+repetitions: 1
+bsbmRuns: 1
+bsbmWarmup: 0
+resultDirectory: "2017-07-27_2/"
+repositoryBasePath: "repo"
+logBasePath: "logs"
+bareRepo: false
+profiling: false
+executionType: "QuitDocker"
+
+scenarios:
+    - "RA_Quit": {
+        evalMode: "ra",
+        repoDir: "/tmp/repo",
+        basbmRuns: 4
+    }
+    - "QL_R43ples": {
+        executionType: "R43plesDocker",
+        evalMode: "ql",
+        bsbmLogMode: "dataset_update",
+        queryLog: "../bsbmtools-0.2/dataset_update.nt",
+    }
+    - "RA_R43ples": {
+        executionType: "R43plesDocker",
+        evalMode: "ql",
+        basbmRuns: 4,
+        basbmRevisions: 101
+    }

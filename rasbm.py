@@ -37,10 +37,13 @@ class RandomAccessExecution(Execution):
             self.runQueryLog()
 
     def runQueryLog(self):
-        arguments = "--endpoint {} --logdir {} --querylog {}".format(
+        arguments = "--endpoint {} --logdir {} --querylog {} --mode {} --store {}".format(
             self.default_endpoints[self.platform],  # endpoint
             os.path.abspath(os.path.join(self.logPath, self.runName)),  # log dir
-            self.bsbmQueryLogFile)  # query log file
+            self.bsbmQueryLogFile,  # query log file
+            self.bsbmLogMode,  # mode
+            self.platfom  # store
+            )  # query log file
         executable = './executeQueryLog.py'
 
         self.arguments = shlex.split(arguments)
@@ -124,6 +127,7 @@ class RaScenarioReader(ScenarioReader):
 
         # New features of rasbm
         bsbmQueryLogFile = docs["bsbmQueryLogFile"] if "bsbmQueryLogFile" in docs else None
+        bsbmLogMode = docs["bsbmLogMode"] if "bsbmLogMode" in docs else None
         evalMode = docs["evalMode"] if "evalMode" in docs else "ra"
         repoDir = docs["repoDir"] if "repoDir" in docs else None
         rasbmRuns = docs["rasbmRuns"] if "rasbmRuns" in docs else 100
@@ -192,8 +196,10 @@ class RaScenarioReader(ScenarioReader):
                     # New RA features
                     execution.bsbmQueryLogFile = runConfig[
                         "bsbmQueryLogFile"] if "bsbmQueryLogFile" in runConfig else bsbmQueryLogFile
+                    execution.bsbmLogMode = runConfig[
+                        "bsbmLogMode"] if "bsbmLogMode" in runConfig else bsbmLogMode
                     execution.repoDir = runConfig[
-                        "repoDir"] if "repoDir" in runConfig else None
+                        "repoDir"] if "repoDir" in runConfig else repoDir
                     execution.evalMode = runConfig[
                         "evalMode"] if "evalMode" in runConfig else evalMode
                     execution.rasbmRuns = runConfig[

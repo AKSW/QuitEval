@@ -18,12 +18,19 @@ class QueryLogExecuter:
             endpoint='http://localhost:8080/r43ples/sparql',
             logFile='execution.log',
             logDir='/var/logs',
-            queryLog=''):
+            queryLog='',
+            mode='bsbm-log',
+            store=None,
+            count=None):
 
+        self.mode = mode
         self.endpoint = endpoint
         self.queryLog = queryLog
         self.logDir = logDir
         self.logFile = os.path.join(self.logDir, logFile)
+        self.mode = mode
+        self.store = store
+        self.count = count
 
         try:
             response = requests.post(endpoint, data={'query': 'SELECT * WHERE {?s ?p ?o} LIMIT 1'}, headers={'Accept': 'application/json'})
@@ -41,42 +48,78 @@ class QueryLogExecuter:
             raise Exception('Could not read query log')
 
     def initQueryLog(self):
-        if os.path.isfile(self.queryLog):
-            write = False
-            queries = []
+        queries = []
+        if self.mode.lower() == 'bsbm-log':
+            if os.path.isfile(self.queryLog):
+                write = False
+                query = []
+                with open(self.queryLog, 'r') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line.startswith('Query string:'):
+                            write = True
+                            query = []
+                        elif line.startswith('Query result'):
+                            write = False
+                            queries.append(' '.join(query))
+                            if len(queries) == self.count:
+                                break
+                        elif write is True:
+                            query.append(line)
+        elif self.mode.lower() == 'dataset_update':
             query = []
+            delete_triples = 0
+            queryType = 'insert'
+            patterns = {'insert': {
+                            'quit': 'WITH <urn:bsbm> INSERT DATA {{ {} }}',
+                            'r43ples': 'INSERT DATA {GRAPH <urn:bsbm> REVISION "master" INSERT DATA {{ {} }}',
+                            'rawbase': 'INSERT DATA {{ {} }} '},
+                        'delete': {
+                            'quit': 'WITH <urn:bsbm> DELETE DATA {{ {} }}',
+                            'r43ples': 'DELETE DATA {GRAPH <urn:bsbm> REVISION "master" {{ {} }}',
+                            'rawbase': 'DELETE DATA {{ {} }}'}}
             with open(self.queryLog, 'r') as f:
-                for line in f:
-                    line = line.strip()
-                    if line.startswith('Query string:'):
-                        write = True
-                        query = []
-                    elif line.startswith('Query result'):
-                        write = False
-                        queries.append(' '.join(query))
-                    elif write is True:
-                        query.append(line)
+                # Toggle between INSERT and DELETE
+                for i, line in enumerate(f):
+                    if len(queries) == self.count:
+                        break
 
-        # print('Found {} queries'.format(len(queries)))
-        self.queries = queries
+                    line = line.strip()
+                    if queryType == 'insert':
+                        query.append(line)
+                        if i != 0 and ((i-delete_triples)) % 40 == 0:
+                            queries.append(patterns[queryType][self.store].format(' '.join(query)))
+                            queryType = 'delete'
+                            query = []
+                    elif queryType == 'delete':
+                        query.append(line)
+                        delete_triples += 1
+                        if ((delete_triples)) % 20 == 0:
+                            queries.append(patterns[queryType][self.store].format(' '.join(query)))
+                            queryType = 'insert'
+                            query = []
+
+        if len(queries) < self.count:
+            print('Did not get enoug queries. Found {} queries'.format(len(queries)))
+            sys.exit()
+        else:
+            print('Found {} queries'.format(len(queries)))
+            self.queries = queries
 
     def runQueries(self):
         for query in self.queries:
             with open(self.logFile, 'a') as executionLog:
                 start, end = self.postRequest(query)
                 data = [str(end - start), str(start), str(end)]
-                print(' '.join(data))
                 executionLog.write(' '.join(data) + '\n')
 
     def postRequest(self, query):
-        print('Executing query')
         start = datetime.datetime.now()
         res = requests.post(
             self.endpoint,
             data={'query': query},
             headers={'Accept': 'application/json'})
         end = datetime.datetime.now()
-        print(res.status_code)
         return start, end
 
     def get_size(self, start_path='database/dataset'):
@@ -204,6 +247,26 @@ def parseArgs(args):
         default='run.log',
         help='The link where to find a bsbm run log benchmark')
 
+    parser.add_argument(
+        '-M',
+        '--mode',
+        type=str,
+        default='bsbm-log',
+        help='The mode the log will be parsed. Chose between "bsbm-log" or "dataset_update".')
+
+    parser.add_argument(
+        '-S',
+        '--store',
+        type=str,
+        help='Queries will be serialized for "quit", "r43ples" or "rawbase"')
+
+    parser.add_argument(
+        '-C',
+        '--count',
+        type=int,
+        default=1000,
+        help='The total number of queries that will be executed.')
+
     return parser.parse_args()
 
 
@@ -216,6 +279,9 @@ if __name__ == '__main__':
         endpoint=args.endpoint,
         logDir=args.logdir,
         logFile=now + '_execution.log',
+        mode=args.mode,
+        count=args.count,
+        store=args.store,
         queryLog=args.querylog)
 
     if args.processid:
