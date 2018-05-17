@@ -787,7 +787,7 @@ class ScenarioReader:
         bareRepo = docs["bareRepo"] if "bareRepo" in docs else False
         profiling = docs["profiling"] if "profiling" in docs else False
         docker = docs["docker"] if "docker" in docs else False
-        executionType = docs["executionType"] if "executionType" in docs else "Quit"
+        default_executionType = docs["executionType"] if "executionType" in docs else "Quit"
         two_graphs = docs["two_graphs"] if "two_graphs" in docs else False
         usecase = docs["usecase"] if "usecase" in docs else False
 
@@ -802,7 +802,7 @@ class ScenarioReader:
                     # these lines could go into a factory
                     scenario_docker = runConfig["docker"] if "docker" in runConfig else docker
                     executionType = runConfig["executionType"] if (
-                        "executionType") in runConfig else executionType
+                        "executionType") in runConfig else default_executionType
 
                     if scenario_docker in self.dockerToExecution.keys() and executionType is None:
                         self.logger.info("Please, don't use 'docker' keyword!")
