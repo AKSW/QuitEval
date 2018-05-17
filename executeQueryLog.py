@@ -89,11 +89,11 @@ class QueryLogExecuter:
             delete_triples = 0
             queryType = 'insert'
             patterns = {'insert': {
-                            'quit': 'WITH <urn:bsbm> INSERT DATA {{ {} }}',
+                            'quit': 'INSERT DATA {{GRAPH <urn:bsbm> {{ {} }} }}',
                             'r43ples': 'INSERT DATA {GRAPH <urn:bsbm> REVISION "master" INSERT DATA {{ {} }}',
                             'rawbase': 'INSERT DATA {{ {} }} '},
                         'delete': {
-                            'quit': 'WITH <urn:bsbm> DELETE DATA {{ {} }}',
+                            'quit': 'DELETE DATA {{GRAPH <urn:bsbm> {{ {} }} }}',
                             'r43ples': 'DELETE DATA {GRAPH <urn:bsbm> REVISION "master" {{ {} }}',
                             'rawbase': 'DELETE DATA {{ {} }}'}}
             with open(self.queryLog, 'r') as f:
