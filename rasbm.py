@@ -35,15 +35,18 @@ class RandomAccessExecution(Execution):
             self.runRandomAccess()
         elif self.evalMode.lower() in ['ql', 'querylog', 'query-log']:
             self.runQueryLog()
+        elif self.evalMode.lower() in ['both', 'complete']:
+            self.runQueryLog()
+            self.runRandomAccess()
 
     def runQueryLog(self):
-        arguments = "--endpoint {} --logdir {} --querylog {} --mode {} --store {}".format(
+        arguments = "--endpoint {} --logdir {} --querylog {} --mode {} --store {} --virtuoso {}".format(
             self.default_endpoints[self.platform],  # endpoint
             os.path.abspath(os.path.join(self.logPath, self.runName)),  # log dir
             self.bsbmQueryLogFile,  # query log file
             self.bsbmLogMode,  # mode
-            self.platfom  # store
-            )  # query log file
+            self.platfom,  # store
+            self.rasbmVirtuoso  # virtuoso)
         executable = './executeQueryLog.py'
 
         self.arguments = shlex.split(arguments)
@@ -130,8 +133,9 @@ class RaScenarioReader(ScenarioReader):
         bsbmLogMode = docs["bsbmLogMode"] if "bsbmLogMode" in docs else None
         evalMode = docs["evalMode"] if "evalMode" in docs else "ra"
         repoDir = docs["repoDir"] if "repoDir" in docs else None
-        rasbmRuns = docs["rasbmRuns"] if "rasbmRuns" in docs else 100
-        rasbmRevisions = docs["rasbmRevisions"] if "rasbmRevisions" in docs else 100
+        rasbmRuns = docs["rasbmRuns"] if "rasbmRuns" in docs else 1000
+        rasbmRevisions = docs["rasbmRevisions"] if "rasbmRevisions" in docs else 1000
+        rasbmVirtuoso = docs["rasbmVirtuoso"] if "rasbmVirtuoso" in docs else 'http://localhost:8890/sparql'
         if "executionType" in docs:
             platform = rasbmMode[docs["executionType"].lower()]
 
@@ -206,6 +210,8 @@ class RaScenarioReader(ScenarioReader):
                         "rasbmRuns"] if "rasbmRuns" in runConfig else rasbmRuns
                     execution.rasbmRevisions = runConfig[
                         "rasbmRevisions"] if "rasbmRevisions" in runConfig else rasbmRevisions
+                    execution.rasbmVirtuoso = runConfig[
+                        "rasbmVirtuoso"] if "rasbmVirtuoso" in runConfig else rasbmVirtuoso
                     execution.executable = runConfig[
                         "executable"] if "executable" in runConfig else executable
                     if "executionType" in runConfig:

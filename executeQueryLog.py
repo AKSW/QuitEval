@@ -9,6 +9,7 @@ import time
 import threading
 from subprocess import check_output
 
+
 class QueryLogExecuter:
     logFile = ''
     commits = []
@@ -21,6 +22,7 @@ class QueryLogExecuter:
             queryLog='',
             mode='bsbm-log',
             store=None,
+            virtuoso=None,
             count=None):
 
         self.mode = mode
@@ -31,11 +33,27 @@ class QueryLogExecuter:
         self.mode = mode
         self.store = store
         self.count = count
+        self.virtuoso = virtuoso
+        self.revisionQuery = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {"
+        self.revisionQuery += "graph <urn:rawbase:provenance> {?entity a prov:Entity. "
+        self.revisionQuery += "?activity prov:generated ?entity ; prov:atTime ?time}} order by desc(?time) limit 1"
 
         try:
-            response = requests.post(endpoint, data={'query': 'SELECT * WHERE {?s ?p ?o} LIMIT 1'}, headers={'Accept': 'application/json'})
+            response = requests.post(
+                endpoint,
+                data={'query': 'SELECT * WHERE {?s ?p ?o} LIMIT 1'},
+                headers={'Accept': 'application/json'})
         except Exception:
-            raise Exception('Cannot access {}'.endpoint)
+            raise Exception('Cannot access {}'.format(endpoint))
+
+        if self.store == 'rawbase':
+            try:
+                response = requests.post(
+                    self.virtuoso,
+                    data={'query': 'SELECT * WHERE {?s ?p ?o} LIMIT 1'},
+                    headers={'Accept': 'text/csv'})
+            except Exception:
+                raise Exception('Cannot access {}'.format(self.virtuoso))
 
         if response.status_code == 200:
             pass
@@ -100,16 +118,29 @@ class QueryLogExecuter:
                             query = []
 
         if len(queries) < self.count:
-            print('Did not get enoug queries. Found {} queries'.format(len(queries)))
+            print('Did not get enough queries. Found {} queries'.format(len(queries)))
             sys.exit()
         else:
             print('Found {} queries'.format(len(queries)))
             self.queries = queries
 
     def runQueries(self):
+        if self.store == 'rawbase':
+            self.runQueriesRawbase()
+        else:
+            self.runQueriesRest()
+
+    def runQueriesRest(self):
         for query in self.queries:
             with open(self.logFile, 'a') as executionLog:
                 start, end = self.postRequest(query)
+                data = [str(end - start), str(start), str(end)]
+                executionLog.write(' '.join(data) + '\n')
+
+    def runQueriesRawbase(self):
+        for query in self.queries:
+            with open(self.logFile, 'a') as executionLog:
+                start, end = self.rawbaseRequest(query)
                 data = [str(end - start), str(start), str(end)]
                 executionLog.write(' '.join(data) + '\n')
 
@@ -119,6 +150,28 @@ class QueryLogExecuter:
             self.endpoint,
             data={'query': query},
             headers={'Accept': 'application/json'})
+        end = datetime.datetime.now()
+        return start, end
+
+    def rwbaseGetParent(self):
+        query = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {graph <urn:rawbase:provenance> {?entity a prov:Entity. ?activity prov:generated ?entity ; prov:atTime ?time}} order by desc(?time) limit 1"
+
+        response = requests.post(self.virtuoso, data={'query': query},
+                                 headers={'Accept': 'text/csv'})
+
+        if len(response.text.split("\n")) > 0:
+            return response.text.split("\n")[1].strip("\"")
+        return ""
+
+    def rawbaseRequest(self, query):
+        start = datetime.datetime.now()
+        parent = self.rwbaseGetParent()
+        params = {"rwb-version": parent}
+        res = requests.post(
+            self.endpoint,
+            data=query,
+            params=params,
+            headers={'Accept': 'application/json', "Content-Type": "application/sparql-update"})
         end = datetime.datetime.now()
         return start, end
 
@@ -132,6 +185,7 @@ class QueryLogExecuter:
                 total_size += os.path.getsize(fp)
                 # self.logger.debug("size {} of {}".format(os.path.getsize(fp), fp))
         return total_size / 1024
+
 
 class MonitorThread(threading.Thread):
     """The Monitor Thread.
@@ -183,20 +237,6 @@ class MonitorThread(threading.Thread):
                 memoryLog.write("{} {} {}\n".format(timestamp, du, mem))
                 time.sleep(1)
         print("Monitor stopped")
-    # print("Monitor Run finished and all resources are closed")
-    # try:
-    #     timestamp = float(round(time.time() * 1000) / 1000)
-    #     try:
-    #         mem = float(psProcess.memory_info().rss) / 1024
-    #     except psutil.NoSuchProcess:
-    #         mem = 0
-    #         try:
-    #             du = self.get_size(self.observedDir)
-    #         except Exception as exc:
-    #             du = 0
-    #             logging.info("{} {} {}\n".format(timestamp, du, mem))
-    #         except Exception as exc:
-    #             print("Monitor exception when writing the last line: {}".format(str(exc)))
 
 
     def get_size(self, start_path='.'):
@@ -267,6 +307,13 @@ def parseArgs(args):
         default=1000,
         help='The total number of queries that will be executed.')
 
+    parser.add_argument(
+        '-V',
+        '--virtuoso',
+        type=str,
+        default='http://localhost:8890/spaql',
+        help='The total number of queries that will be executed.')
+
     return parser.parse_args()
 
 
@@ -282,6 +329,7 @@ if __name__ == '__main__':
         mode=args.mode,
         count=args.count,
         store=args.store,
+        virtuoso=args.virtuoso,
         queryLog=args.querylog)
 
     if args.processid:
