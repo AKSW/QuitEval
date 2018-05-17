@@ -23,6 +23,7 @@ class QueryLogExecuter:
             mode='bsbm-log',
             store=None,
             virtuoso=None,
+            triples=None,
             count=None):
 
         self.mode = mode
@@ -34,6 +35,7 @@ class QueryLogExecuter:
         self.store = store
         self.count = count
         self.virtuoso = virtuoso
+        self.triples = triples
         self.revisionQuery = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {"
         self.revisionQuery += "graph <urn:rawbase:provenance> {?entity a prov:Entity. "
         self.revisionQuery += "?activity prov:generated ?entity ; prov:atTime ?time}} order by desc(?time) limit 1"
@@ -87,7 +89,6 @@ class QueryLogExecuter:
         elif self.mode.lower() == 'dataset_update':
             query = []
             delete_triples = 0
-            queryType = 'insert'
             patterns = {'insert': {
                             'quit': 'INSERT DATA {{GRAPH <urn:bsbm> {{ {} }} }}',
                             'r43ples': 'INSERT DATA {GRAPH <urn:bsbm> REVISION "master" INSERT DATA {{ {} }}',
@@ -96,26 +97,28 @@ class QueryLogExecuter:
                             'quit': 'DELETE DATA {{GRAPH <urn:bsbm> {{ {} }} }}',
                             'r43ples': 'DELETE DATA {GRAPH <urn:bsbm> REVISION "master" {{ {} }}',
                             'rawbase': 'DELETE DATA {{ {} }}'}}
-            with open(self.queryLog, 'r') as f:
-                # Toggle between INSERT and DELETE
-                for i, line in enumerate(f):
-                    if len(queries) == self.count:
-                        break
 
+            queryType = 'insert'
+            with open(self.queryLog, 'r') as f:
+                for i, line in enumerate(f):
+                    if len(queries)+1 > self.count/2:
+                        break
                     line = line.strip()
-                    if queryType == 'insert':
-                        query.append(line)
-                        if i != 0 and ((i-delete_triples)) % 40 == 0:
-                            queries.append(patterns[queryType][self.store].format(' '.join(query)))
-                            queryType = 'delete'
-                            query = []
-                    elif queryType == 'delete':
-                        query.append(line)
-                        delete_triples += 1
-                        if ((delete_triples)) % 20 == 0:
-                            queries.append(patterns[queryType][self.store].format(' '.join(query)))
-                            queryType = 'insert'
-                            query = []
+                    query.append(line)
+                    if i != 0 and i % self.triples == 0:
+                        queries.append(patterns[queryType][self.store].format(' '.join(query)))
+                        query = []
+
+            queryType = 'delete'
+            with open(self.queryLog, 'r') as f:
+                for i, line in enumerate(f):
+                    if len(queries)+1 > self.count:
+                        break
+                    line = line.strip()
+                    query.append(line)
+                    if i != 0 and i % self.triples == 0:
+                        queries.append(patterns[queryType][self.store].format(' '.join(query)))
+                        query = []
 
         if len(queries) < self.count:
             print('Did not get enough queries. Found {} queries'.format(len(queries)))
@@ -311,8 +314,15 @@ def parseArgs(args):
         '-V',
         '--virtuoso',
         type=str,
-        default='http://localhost:8890/spaql',
+        default='http://localhost:8890/sparql',
         help='The total number of queries that will be executed.')
+
+    parser.add_argument(
+        '-T',
+        '--triples',
+        type=int,
+        default=40,
+        help='The number of triples a insert/delete data query will use.')
 
     return parser.parse_args()
 
@@ -330,6 +340,7 @@ if __name__ == '__main__':
         count=args.count,
         store=args.store,
         virtuoso=args.virtuoso,
+        triples=args.triples,
         queryLog=args.querylog)
 
     if args.processid:
