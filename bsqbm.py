@@ -258,6 +258,28 @@ class R43plesExecution(Execution):
             "BSBM Process ID is: {}".format(self.bsbmProcess.pid))
 
 
+class RawbaseExecution(Execution):
+
+    repositoryPath = None
+
+    def prepare(self):
+
+        self.logger.debug(
+            "prepare scenario \"{}\" with configuration:".format(self.runName))
+        self.logger.debug("store executable: {}".format(self.executable))
+        self.logger.debug("bsbm: {}".format(self.bsbmLocation))
+        self.logger.debug("bsbm config: runs={} warmup={}".format(
+            self.bsbmRuns, self.bsbmWarmup))
+        self.logger.debug("args: {}".format(self.storeArguments))
+        self.logger.debug("profiling: {}".format(self.profiling))
+        self.logger.debug("repositoryPath: {}".format(self.repositoryPath))
+
+        os.makedirs(self.logPath, exist_ok=True)
+        os.makedirs(self.repositoryPath, exist_ok=True)
+
+    def runBSBM(self):
+        pass
+
 class QuitExecution(Execution):
 
     repositoryPath = None
@@ -620,11 +642,104 @@ class R43plesDockerExecution(R43plesExecution):
             self.terminate()
 
 
+class RawbaseDockerExecution(RawbaseExecution):
+    logger = logging.getLogger('quit-eval.docker_execution')
+
+    running = False
+
+    containerLoadDataMount = '/var/r43ples/data'
+    image = 'aksw/rawbase'
+    portMappings = ['8080:80']
+    volumeMounts = []
+    envVariables = []
+
+    def run(self, block=False):
+
+        self.logger.debug("start scenario {}".format(self.runName))
+        self.hostLoadDataDir = self.repositoryPath
+
+        self.running = True
+        self.runStore()
+        time.sleep(25)
+        self.monitor = MonitorThread()
+        self.monitor.setstoreProcessAndDirectory(
+            self.storeProcess, self.hostTbdDir, self.logPath)
+        self.monitor.start()
+        time.sleep(5)
+        self.runBSBM()
+        if (block):
+            self.bsbmProcess.wait()
+        self.logger.debug("Run has finished")
+
+    def runStore(self):
+        # TODO Wie kommt die dataset.nt in den Virtuoso
+        self.volumeMounts = []
+        # self.volumeMounts = [
+        #     self.hostLoadDataDir + ':' + self.containerLoadDataMount,
+        #     self.hostTbdDir + ':' + self.containerTbdMount]
+
+        if self.profiling:
+            self.logger.info('Profiling not implemented for docker environment, yet.')
+            dockerCommand = []
+        else:
+            dockerCommand = []
+
+        dockerCommand += ['docker', 'run', '--name', 'bsbm.docker']
+        for portMapping in self.portMappings:
+            dockerCommand += ['-p', portMapping]
+        for volumeMount in self.volumeMounts:
+            dockerCommand += ['-v', volumeMount]
+        for envVariable in self.envVariables:
+            dockerCommand += ['-e', envVariable]
+        dockerCommand += ['--rm', '-t', self.image]
+        self.logger.debug("Start rawbase container: {}".format(' '.join(dockerCommand)))
+        self.storeProcess = subprocess.Popen(dockerCommand)
+        self.logger.debug("Rawbase docker process is: {}".format(self.storeProcess.pid))
+        # self.repositoryPath = self.hostTargetDir
+
+    def pause(self):
+        programPause = input("Press the <ENTER> key to continue...")
+
+    def terminate(self):
+        self.logger.debug("Terminate has been called on execution")
+
+        # print("Bitte r43ples testen")
+        # self.pause()
+        if self.running:
+            self.logger.debug('Trying to stop container')
+            subprocess.Popen(['docker', 'rm', '-f', 'bsbm.docker'])
+            time.sleep(2)
+            self.logger.debug('Container stopped')
+            # self.logger.debug(self.mem_usage)
+            # self.memory_log.close()
+            if hasattr(self, "bsbmProcess"):
+                self.terminateProcess(self.bsbmProcess)
+            # mv bsbm/run.log $QUIT_EVAL_DIR/$LOGDIR/$RUNDIR-run.log
+            if (os.path.exists(os.path.join(self.bsbmLocation, "run.log"))):
+                os.rename(os.path.join(self.bsbmLocation, "run.log"),
+                          os.path.join(self.logPath, self.runName + "-run.log"))
+            if hasattr(self, "storeProcess"):
+                self.terminateProcess(self.storeProcess)
+            self.logger.debug("Call monitor.stop()")
+            self.monitor.stop()
+            self.logger.debug("monitor.stop() called")
+            self.monitor.join()
+            self.logger.debug("monitor.join() finished")
+            self.running = False
+
+    def __del__(self):
+        if self.running:
+            self.logger.debug("Destructor called for {} and {}".format(
+                self.storeProcess.pid, self.bsbmProcess.pid))
+            self.terminate()
+
+
 class ScenarioReader:
 
     logger = logging.getLogger('quit-eval.scenarioreader')
     dockerToExecution = {'r43ples': 'R43plesDocker',
                          'quit': 'QuitDocker',
+                         'rawbase': 'RawbaseDocker',
                          'oldquit': 'QuitOld',
                          'uwsgi': 'Uwsgi',
                          'adhs': 'Adhs',
