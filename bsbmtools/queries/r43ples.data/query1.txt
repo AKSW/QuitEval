@@ -1,0 +1,3 @@
+USER "radtke" MESSAGE "BSBM insert data query" INSERT DATA {
+    GRAPH <urn:bsbm> REVISION "master" { %updateData% }
+}

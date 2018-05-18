@@ -7,11 +7,6 @@ import argparse
 from random import seed, randint, sample
 
 class lsbm:
-    QUERY = """
-        SELECT * WHERE { graph ?g { ?s ?p ?o .}} LIMIT 10"""
-
-    INSERT = """
-        INSERT DATA { graph {graph} { {sub} ?p ?o .}} LIMIT 10"""
 
     def __init__(self, baseUri, defaultGraph):
         self.baseUri = baseUri
@@ -47,8 +42,12 @@ class lsbm:
             self.toInsert.remove(resource)
             self.toDelete.add(resource)
             #print("add {}".format(resource))
-        query = "INSERT DATA {{GRAPH <{graph}> {{ {body} }}}}".format(
-            graph=self.defaultGraph, body=queryBody)
+        if self.defaultGraph:
+            query = "INSERT DATA {{GRAPH <{graph}> {{ {body} }}}}".format(
+                graph=self.defaultGraph, body=queryBody)
+        else:
+            query = "INSERT DATA {{ {body} }}".format(body=queryBody)
+
         return query
 
     def prepareDelete(self):
@@ -59,17 +58,37 @@ class lsbm:
             '''.format(resource=resource)
             self.toDelete.remove(resource)
             #print("del {}".format(resource))
-        query = "DELETE DATA {{GRAPH <{graph}> {{ {body} }}}}".format(
+        if self.defaultGraph:
+            query = "DELETE DATA {{GRAPH <{graph}> {{ {body} }}}}".format(
                 graph=self.defaultGraph, body=queryBody)
+        else:
+            query = "DELETE DATA {{ {body} }}".format(body=queryBody)
         return query
 
+    def rwbaseGetParent(self, rwbVirtuoso):
+        print("get parent commit")
+        #query = "prefix prov: <http://www.w3.org/ns/prov#> select ?activity where {graph <urn:rawbase:provenance> {?activity a prov:Activity; prov:atTime ?time}} order by desc(?time) limit 1"
+        query = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {graph <urn:rawbase:provenance> {?entity a prov:Entity. ?activity prov:generated ?entity ; prov:atTime ?time}} order by desc(?time) limit 1"
 
-    def run(self, endpoint):
+        response = requests.post(rwbVirtuoso, data={'query': query},
+                                 headers={'Accept': 'text/csv'})
+
+        if len(response.text.split("\n")) > 0:
+            return response.text.split("\n")[1].strip("\"")
+        return ""
+
+    def run(self, endpoint, endpointType=None, rwbVirtuoso=None):
 
         for query in self.queryList:
-            print("exec: {}".format(query))
-            response = requests.post(endpoint, data={'query': query},
-                                 headers={'Accept': 'application/json'})
+            params = {}
+
+            if endpointType == "rwb":
+                parent = self.rwbaseGetParent(rwbVirtuoso)
+                params["rwb-version"] = parent
+
+            print("exec: {} with params: {}".format(query, params))
+            response = requests.post(endpoint, data=query, params=params,
+                                     headers={'Accept': 'application/json', "Content-Type": "application/sparql-update"})
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -86,6 +105,17 @@ if __name__ == '__main__':
         default=None,
         help='The SPARQL Endpoint to test')
     parser.add_argument(
+        '-et',
+        '--endpointType',
+        type=str,
+        default=None,
+        help='The SPARQL Endpoint type none or "rwb"')
+    parser.add_argument(
+        '--rwb-virtuoso',
+        type=str,
+        default=None,
+        help='The Virtuoso SPARQL Endpoint of R&Wbase')
+    parser.add_argument(
         '-b',
         '--baseUri',
         type=str,
@@ -95,8 +125,8 @@ if __name__ == '__main__':
         '-d',
         '--defaultGraph',
         type=str,
-        default="http://example.org/",
-        help='The default graphs URI for the test')
+        default=None,
+        help='The default graphs URI for the test (default None)')
     parser.add_argument(
         '-n',
         '--numberOfResources',
@@ -110,5 +140,7 @@ if __name__ == '__main__':
     seed(args.seed)
 
     lsbm = lsbm(args.baseUri, args.defaultGraph)
+    #lsbm.rwbaseGetParent()
+
     lsbm.prepare(args.numberOfResources)
-    lsbm.run(args.endpoint)
+    lsbm.run(args.endpoint, args.endpointType, args.rwb_virtuoso)

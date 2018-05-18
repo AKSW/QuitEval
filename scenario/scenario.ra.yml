@@ -1,0 +1,38 @@
+bsbmLocation: "../bsbmtools-0.2"
+executable: "quit"
+repetitions: 1
+bsbmRuns: 1
+bsbmWarmup: 0
+resultDirectory: "2017-07-27_2/"
+repositoryBasePath: "repo"
+logBasePath: "logs"
+bareRepo: false
+profiling: false
+executionType: "QuitDocker"
+bsbmQueryLogFile: "../bsbmtools-0.2/dataset_update.nt"
+bsbmLogMode: "plain"
+
+scenarios:
+    - "Rawbase": {
+        evalMode: "complete",
+        executionType: "RawbaseDocker",
+        basbmRuns: 10,  # queries to be executed
+        basbmRevisions: 10 # if more revisions (r43ples) than queries we want to execute
+    }
+    - "RA_Quit": {
+        evalMode: "ra",
+        repoDir: "/tmp/repo",
+        basbmRuns: 4
+    }
+    - "QL_R43ples": {
+        executionType: "R43plesDocker",
+        evalMode: "ql",
+        bsbmLogMode: "dataset_update",
+        queryLog: "../bsbmtools-0.2/dataset_update.nt",
+    }
+    - "RA_R43ples": {
+        executionType: "R43plesDocker",
+        evalMode: "ql",
+        basbmRuns: 4,
+        basbmRevisions: 101
+    }

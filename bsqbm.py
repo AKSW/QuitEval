@@ -258,6 +258,28 @@ class R43plesExecution(Execution):
             "BSBM Process ID is: {}".format(self.bsbmProcess.pid))
 
 
+class RawbaseExecution(Execution):
+
+    repositoryPath = None
+
+    def prepare(self):
+
+        self.logger.debug(
+            "prepare scenario \"{}\" with configuration:".format(self.runName))
+        self.logger.debug("store executable: {}".format(self.executable))
+        self.logger.debug("bsbm: {}".format(self.bsbmLocation))
+        self.logger.debug("bsbm config: runs={} warmup={}".format(
+            self.bsbmRuns, self.bsbmWarmup))
+        self.logger.debug("args: {}".format(self.storeArguments))
+        self.logger.debug("profiling: {}".format(self.profiling))
+        self.logger.debug("repositoryPath: {}".format(self.repositoryPath))
+
+        os.makedirs(self.logPath, exist_ok=True)
+        os.makedirs(self.repositoryPath, exist_ok=True)
+
+    def runBSBM(self):
+        pass
+
 class QuitExecution(Execution):
 
     repositoryPath = None
@@ -397,7 +419,6 @@ class QuitExecution(Execution):
         self.logger.debug(
             "BSBM Process ID is: {}".format(self.bsbmProcess.pid))
 
-
 class AdhsExecution(QuitExecution):
 
     def runStore(self):
@@ -406,6 +427,17 @@ class AdhsExecution(QuitExecution):
         self.logger.debug("Start adhs: {}".format(adhsCommand))
         self.storeProcess = subprocess.Popen(adhsCommand)
         self.logger.debug("Adhs process is: {}".format(self.storeProcess.pid))
+
+class AdhsUwsgiExecution(QuitExecution):
+
+    def runStore(self):
+        storeArguments = shlex.split(self.storeArguments)
+        argumentString = " ".join(storeArguments)
+        adhsCommand = ["uwsgi", "--http", "0.0.0.0:5000", "-b", "65536", "--pythonpath", self.pythonpath,
+                       "-w", self.wsgimodule, "--pyargv", argumentString]
+        self.logger.debug("Start adhs with uwsgi: {}".format(adhsCommand))
+        self.storeProcess = subprocess.Popen(adhsCommand)
+        self.logger.debug("Adhs uwsgi process is: {}".format(self.storeProcess.pid))
 
 class UwsgiExecution(QuitExecution):
 
@@ -513,18 +545,20 @@ class R43plesDockerExecution(R43plesExecution):
 
     running = False
 
-    dataDir = ''
+    containerLoadDataMount = '/var/r43ples/data'
     graph = 'urn:bsbm'
     image = 'aksw/r43ples'
     portMappings = ['8080:80']
-    volumeMounts = [dataDir + ':/var/r43ples/data']
+    volumeMounts = []
     envVariables = ['GRAPH_URI=' + graph]
 
     def run(self, block=False):
 
         self.logger.debug("start scenario {}".format(self.runName))
-        self.hostTargetDir = self.repositoryPath
-        self.repositoryPath = '/var/r43ples/data'
+        self.hostLoadDataDir = self.repositoryPath
+        self.hostTbdDir = os.path.join(self.repositoryPath, '../database')
+        self.containerTbdMount = '/var/r43ples/database'
+        os.makedirs(os.path.join(self.repositoryPath, '../database'))
 
         self.running = True
         self.runStore()
@@ -535,7 +569,7 @@ class R43plesDockerExecution(R43plesExecution):
         time.sleep(2)
         self.monitor = MonitorThread()
         self.monitor.setstoreProcessAndDirectory(
-            self.storeProcess, self.repositoryPath, self.logPath)
+            self.storeProcess, self.hostTbdDir, self.logPath)
         self.monitor.start()
         time.sleep(5)
         self.runBSBM()
@@ -544,7 +578,9 @@ class R43plesDockerExecution(R43plesExecution):
         self.logger.debug("Run has finished")
 
     def runStore(self):
-        self.volumeMounts = [self.hostTargetDir + ':' + self.repositoryPath]
+        self.volumeMounts = [
+            self.hostLoadDataDir + ':' + self.containerLoadDataMount,
+            self.hostTbdDir + ':' + self.containerTbdMount]
 
         if self.profiling:
             self.logger.info('Profiling not implemented for docker environment, yet.')
@@ -563,14 +599,109 @@ class R43plesDockerExecution(R43plesExecution):
         self.logger.debug("Start r43ples container: {}".format(' '.join(dockerCommand)))
         self.storeProcess = subprocess.Popen(dockerCommand)
         self.logger.debug("R43ples docker process is: {}".format(self.storeProcess.pid))
-        self.repositoryPath = self.hostTargetDir
+        # self.repositoryPath = self.hostTargetDir
 
     def postPrepare(self, graphuri):
         arguments = parse.urlencode({'query': 'CREATE GRAPH <' + graphuri + '>'})
         conn = request.urlopen('http://localhost:8080/r43ples/sparql', (arguments.encode('utf-8')))
 
+    def pause(self):
+        programPause = input("Press the <ENTER> key to continue...")
+
     def terminate(self):
         self.logger.debug("Terminate has been called on execution")
+
+        print("Bitte r43ples testen")
+        self.pause()
+        if self.running:
+            self.logger.debug('Trying to stop container')
+            subprocess.Popen(['docker', 'rm', '-f', 'bsbm.docker'])
+            time.sleep(2)
+            self.logger.debug('Container stopped')
+            # self.logger.debug(self.mem_usage)
+            # self.memory_log.close()
+            if hasattr(self, "bsbmProcess"):
+                self.terminateProcess(self.bsbmProcess)
+            # mv bsbm/run.log $QUIT_EVAL_DIR/$LOGDIR/$RUNDIR-run.log
+            if (os.path.exists(os.path.join(self.bsbmLocation, "run.log"))):
+                os.rename(os.path.join(self.bsbmLocation, "run.log"),
+                          os.path.join(self.logPath, self.runName + "-run.log"))
+            if hasattr(self, "storeProcess"):
+                self.terminateProcess(self.storeProcess)
+            self.logger.debug("Call monitor.stop()")
+            self.monitor.stop()
+            self.logger.debug("monitor.stop() called")
+            self.monitor.join()
+            self.logger.debug("monitor.join() finished")
+            self.running = False
+
+    def __del__(self):
+        if self.running:
+            self.logger.debug("Destructor called for {} and {}".format(
+                self.storeProcess.pid, self.bsbmProcess.pid))
+            self.terminate()
+
+
+class RawbaseDockerExecution(RawbaseExecution):
+    logger = logging.getLogger('quit-eval.docker_execution')
+
+    running = False
+
+    image = 'aksw/rawbase'
+    portMappings = ['8080:80']
+    volumeMounts = []
+    envVariables = []
+
+    def run(self, block=False):
+
+        self.logger.debug("start scenario {}".format(self.runName))
+        self.hostLoadDataDir = self.repositoryPath
+
+        self.running = True
+        self.runStore()
+        time.sleep(25)
+        self.monitor = MonitorThread()
+        self.monitor.setstoreProcessAndDirectory(
+            self.storeProcess, self.hostTbdDir, self.logPath)
+        self.monitor.start()
+        time.sleep(5)
+        self.runBSBM()
+        if (block):
+            self.bsbmProcess.wait()
+        self.logger.debug("Run has finished")
+
+    def runStore(self):
+        self.volumeMounts = []
+        # self.volumeMounts = [
+        #     self.hostLoadDataDir + ':' + self.containerLoadDataMount,
+        #     self.hostTbdDir + ':' + self.containerTbdMount]
+
+        if self.profiling:
+            self.logger.info('Profiling not implemented for docker environment, yet.')
+            dockerCommand = []
+        else:
+            dockerCommand = []
+
+        dockerCommand += ['docker', 'run', '--name', 'bsbm.docker']
+        for portMapping in self.portMappings:
+            dockerCommand += ['-p', portMapping]
+        for volumeMount in self.volumeMounts:
+            dockerCommand += ['-v', volumeMount]
+        for envVariable in self.envVariables:
+            dockerCommand += ['-e', envVariable]
+        dockerCommand += ['--rm', '-t', self.image]
+        self.logger.debug("Start rawbase container: {}".format(' '.join(dockerCommand)))
+        self.storeProcess = subprocess.Popen(dockerCommand)
+        self.logger.debug("Rawbase docker process is: {}".format(self.storeProcess.pid))
+
+    def pause(self):
+        programPause = input("Press the <ENTER> key to continue...")
+
+    def terminate(self):
+        self.logger.debug("Terminate has been called on execution")
+
+        # print("Bitte r43ples testen")
+        # self.pause()
         if self.running:
             self.logger.debug('Trying to stop container')
             subprocess.Popen(['docker', 'rm', '-f', 'bsbm.docker'])
@@ -603,6 +734,13 @@ class R43plesDockerExecution(R43plesExecution):
 class ScenarioReader:
 
     logger = logging.getLogger('quit-eval.scenarioreader')
+    dockerToExecution = {'r43ples': 'R43plesDocker',
+                         'quit': 'QuitDocker',
+                         'rawbase': 'RawbaseDocker',
+                         'oldquit': 'QuitOld',
+                         'uwsgi': 'Uwsgi',
+                         'adhs': 'Adhs',
+                         'adhs-uwsgi': 'AdhsUwsgi'}
 
     def readScenariosFromDir(self, runDir):
         scenarioPath = os.path.join(runDir, "scenario.yml")
@@ -646,6 +784,7 @@ class ScenarioReader:
         bareRepo = docs["bareRepo"] if "bareRepo" in docs else False
         profiling = docs["profiling"] if "profiling" in docs else False
         docker = docs["docker"] if "docker" in docs else False
+        default_executionType = docs["executionType"] if "executionType" in docs else "Quit"
         two_graphs = docs["two_graphs"] if "two_graphs" in docs else False
         usecase = docs["usecase"] if "usecase" in docs else False
 
@@ -658,34 +797,18 @@ class ScenarioReader:
                     runName = runName + "-" + str(repetition)
 
                     # these lines could go into a factory
-                    scenario_docker = runConfig[
-                        "docker"] if "docker" in runConfig else False
+                    scenario_docker = runConfig["docker"] if "docker" in runConfig else docker
+                    executionType = runConfig["executionType"] if (
+                        "executionType") in runConfig else default_executionType
 
-                    if scenario_docker in ['r43ples', 'quit', 'oldquit', 'uwsgi', 'adhs']:
-                        container = scenario_docker
-                    else:
-                        container = docker
+                    if scenario_docker in self.dockerToExecution.keys() and executionType is None:
+                        self.logger.info("Please, don't use 'docker' keyword!")
+                        executionType = self.dockerToExecution[scenario_docker]
 
-                    image = runConfig["image"] if ("image") in runConfig else False
                     tg = runConfig["two_graphs"] if ("two_graphs") in runConfig else False
                     uc = runConfig["usecase"] if ("usecase") in runConfig else False
 
-                    if container == 'r43ples':
-                        execution = R43plesDockerExecution()
-                        if image:
-                            execution.image = image
-                    elif container == 'quit':
-                        execution = QuitDockerExecution()
-                        if image:
-                            execution.image = image
-                    elif container == 'oldquit':
-                        execution = QuitOldExecution()
-                    elif container == "uwsgi":
-                        execution = UwsgiExecution()
-                    elif container == "adhs":
-                        execution = AdhsExecution()
-                    else:
-                        execution = QuitExecution()
+                    execution = getattr(sys.modules[__name__], executionType + "Execution")()
 
                     execution.bsbmLocation = bsbmLocation
                     execution.bsbmRuns = bsbmRuns
@@ -694,7 +817,7 @@ class ScenarioReader:
                     # these parameters are individual per scenario
                     runDirectory = os.path.join(
                         resultDirectory, "quit-" + runName)
-                    getScenarioPath = self.__getScenarioPathFunction(
+                    getScenarioPath = self.getScenarioPathFunction(
                         "quit-" + runName, runDirectory, runConfig)
 
                     execution.runName = "quit-" + runName
@@ -711,6 +834,8 @@ class ScenarioReader:
 
                     execution.executable = runConfig[
                         "executable"] if "executable" in runConfig else executable
+                    if "image" in runConfig:
+                        execution.image = runConfig["image"]
                     execution.wsgimodule = runConfig[
                         "wsgimodule"] if "wsgimodule" in runConfig else wsgimodule
                     execution.pythonpath = runConfig[
@@ -730,7 +855,7 @@ class ScenarioReader:
 
         return generalConfig, scenarios
 
-    def __getScenarioPathFunction(self, runName, runDirectory, runConfig):
+    def getScenarioPathFunction(self, runName, runDirectory, runConfig):
         def scenarioPathFunction(key, default):
             basePath = runConfig[key] if key in runConfig else default
             if os.path.isabs(basePath):
@@ -740,7 +865,7 @@ class ScenarioReader:
         return scenarioPathFunction
 
 
-def main(scenarioPath):
+def main(scenarioPath, scenarioReader, runner):
     """Start the BSQBM."""
     def signal_handler(signal, frame):
         print('You pressed Ctrl+C!')
@@ -759,7 +884,7 @@ def main(scenarioPath):
         logger.error('Can not create stream. Path not found: ' + scenarioPath)
         sys.exit(1)
 
-    generalConfig, scenarios = ScenarioReader().readScenarios(
+    generalConfig, scenarios = scenarioReader.readScenarios(
         docs, os.path.dirname(scenarioPath))
 
     if os.path.exists(generalConfig["resultDirectory"]):
@@ -785,7 +910,6 @@ def main(scenarioPath):
 
     logger.info("Use scenario configuration from: {}".format(scenarioPath))
 
-    runner = BSQBMRunner()
     runner.addExecutionsToQueue(scenarios)
 
     with open(
@@ -811,4 +935,4 @@ if __name__ == '__main__':
         sys.exit(1)
 
     scenarioPath = sys.argv[1]
-    main(scenarioPath)
+    main(scenarioPath, ScenarioReader(), BSQBMRunner())
