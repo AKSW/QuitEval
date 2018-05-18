@@ -28,9 +28,11 @@ class RandomAccessExecution(Execution):
     """Execute Random Access Queries or a BSBM Query Log on supported Backends."""
     logger = logging.getLogger('quit-ra.execution')
     default_endpoints = {'quit': 'http://localhost:5000/sparql',
-                         'r43ples': 'http://localhost:8080/r43ples/sparql'}
+                         'r43ples': 'http://localhost:8080/r43ples/sparql',
+                         'rawbase': 'http://localhost:8080/rawbase/update'}
 
     def runBSBM(self):
+        self.logger.info('Starting RASBM with mode {}'.format(self.evalMode))
         if self.evalMode.lower() in ['ra', 'randomaccess', 'random-access']:
             self.runRandomAccess()
         elif self.evalMode.lower() in ['ql', 'querylog', 'query-log']:

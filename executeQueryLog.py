@@ -41,28 +41,6 @@ class QueryLogExecuter:
         self.revisionQuery += "?activity prov:generated ?entity ; prov:atTime ?time}} order by desc(?time) limit 1"
 
         try:
-            response = requests.post(
-                endpoint,
-                data={'query': 'SELECT * WHERE {?s ?p ?o} LIMIT 1'},
-                headers={'Accept': 'application/json'})
-        except Exception:
-            raise Exception('Cannot access {}'.format(endpoint))
-
-        if self.store == 'rawbase':
-            try:
-                response = requests.post(
-                    self.virtuoso,
-                    data={'query': 'SELECT * WHERE {?s ?p ?o} LIMIT 1'},
-                    headers={'Accept': 'text/csv'})
-            except Exception:
-                raise Exception('Cannot access {}'.format(self.virtuoso))
-
-        if response.status_code == 200:
-            pass
-        else:
-            raise Exception('Something wrong with sparql endpoint.')
-
-        try:
             self.initQueryLog()
         except Exception:
             raise Exception('Could not read query log')
@@ -163,7 +141,8 @@ class QueryLogExecuter:
                                  headers={'Accept': 'text/csv'})
 
         if len(response.text.split("\n")) > 0:
-            return response.text.split("\n")[1].strip("\"")
+            parent = response.text.split("\n")[1].strip("\"")
+            return parent
         return ""
 
     def rawbaseRequest(self, query):
@@ -342,6 +321,8 @@ if __name__ == '__main__':
         virtuoso=args.virtuoso,
         triples=args.triples,
         queryLog=args.querylog)
+
+    exe.initQueryLog()
 
     if args.processid:
         mon = MonitorThread(logDir=args.logdir, logFile=now + '_memory.log')

@@ -10,7 +10,7 @@ bareRepo: false
 profiling: false
 executionType: "QuitDocker"
 bsbmQueryLogFile: "../bsbmtools-0.2/dataset_update.nt"
-bsbmLogMode: "plain"
+bsbmLogMode: "dataset_update"
 
 scenarios:
     - "Rawbase": {

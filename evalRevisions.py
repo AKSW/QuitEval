@@ -27,15 +27,6 @@ class EvalCommits:
         self.endpoint = endpoint
         self.logDir = logDir
         self.logFile = os.path.join(self.logDir, logFile)
-        try:
-            response = requests.post(endpoint, data={'query': self.QUERY}, headers={'Accept': 'application/json'})
-        except Exception:
-            raise Exception('Cannot access {}'.endpoint)
-
-        if response.status_code == 200:
-            pass
-        else:
-            raise Exception('Something wrong with sparql endpoint.')
 
         if isinstance(revisions, int):
             self.revisions = revisions

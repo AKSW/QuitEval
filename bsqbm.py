@@ -648,7 +648,7 @@ class RawbaseDockerExecution(RawbaseExecution):
     running = False
 
     image = 'aksw/rawbase'
-    portMappings = ['8080:80']
+    portMappings = ['8080:80', '8890:8890']
     volumeMounts = []
     envVariables = []
 
