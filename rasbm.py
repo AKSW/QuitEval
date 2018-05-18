@@ -6,7 +6,7 @@ import os
 import shlex
 import subprocess
 from bsqbm import Execution, ScenarioReader, BSQBMRunner, QuitDockerExecution, QuitExecution, main as bsqbmMain
-from bsqbm import R43plesExecution, R43plesDockerExecution
+from bsqbm import R43plesExecution, R43plesDockerExecution, RawbaseDockerExecution
 
 
 logger = logging.getLogger('quit-ra')
@@ -37,7 +37,6 @@ class RandomAccessExecution(Execution):
             self.runQueryLog()
         elif self.evalMode.lower() in ['both', 'complete']:
             self.runQueryLog()
-            self.runRandomAccess()
 
     def runQueryLog(self):
         arguments = "--endpoint {} --logdir {} --querylog {} --mode {} --store {} --virtuoso {}".format(
@@ -46,17 +45,23 @@ class RandomAccessExecution(Execution):
             self.bsbmQueryLogFile,  # query log file
             self.bsbmLogMode,  # mode
             self.platfom,  # store
-            self.rasbmVirtuoso  # virtuoso)
+            self.rasbmVirtuoso)  # virtuoso
         executable = './executeQueryLog.py'
 
         self.arguments = shlex.split(arguments)
         self.logger.debug("Start RASBM ({}) for {} with {}".format(
             'Random Access (' + executable + ')', self.platform, arguments))
 
-        self.bsbmProcess = subprocess.Popen(
-            [executable] + self.arguments)
+        if self.evalMode in ['both', 'complete']:
+            command = executable + shlex.split(arguments)
+            print(command)
+            self.runRandomAccess(command)
+        else:
+            self.bsbmProcess = subprocess.Popen(
+                [executable] + self.arguments)
+            logger.info(self.bsbmProcess)
 
-    def runRandomAccess(self):
+    def runRandomAccess(self, qlCommand=None):
 
         if self.platform == 'quit':
             arguments = "--endpoint {} --runs {} --logdir {} --repodir {}".format(
@@ -77,8 +82,13 @@ class RandomAccessExecution(Execution):
         self.logger.debug("Start RASBM ({}) for {} with {}".format(
             'Random Access (' + executable + ')', self.platform, arguments))
 
-        self.bsbmProcess = subprocess.Popen(
-            [executable] + self.arguments)
+        if self.evalMode in ['both', 'complete']:
+            commands = qlCommand + ';' + executable + shlex.split(arguments)
+            self.bsbmProcess = subprocess.Popen(
+                commands, shell=True)
+        else:
+            self.bsbmProcess = subprocess.Popen(
+                [executable] + self.arguments)
         logger.info(self.bsbmProcess)
 
 
@@ -90,11 +100,19 @@ class RaR43plesExecution(RandomAccessExecution, R43plesDockerExecution):
     pass
 
 
+class RaRawbaseExecution(RandomAccessExecution, RawbaseDockerExecution):
+    pass
+
+
 class RaQuitDockerExecution(RandomAccessExecution, QuitDockerExecution):
     pass
 
 
 class RaR43plesDockerExecution(RandomAccessExecution, R43plesDockerExecution):
+    pass
+
+
+class RaRawbaseDockerExecution(RandomAccessExecution, RawbaseDockerExecution):
     pass
 
 
@@ -108,6 +126,8 @@ class RaScenarioReader(ScenarioReader):
 
         rasbmMode = {'r43ples': 'r43ples',
                      'r43plesdocker': 'r43ples',
+                     'rawbase': 'rawbase',
+                     'rawbasedocker': 'rawbase',
                      'quit': 'quit',
                      'quitdocker': 'quit',
                      'uwsgi': 'quit'}

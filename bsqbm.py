@@ -647,7 +647,6 @@ class RawbaseDockerExecution(RawbaseExecution):
 
     running = False
 
-    containerLoadDataMount = '/var/r43ples/data'
     image = 'aksw/rawbase'
     portMappings = ['8080:80']
     volumeMounts = []
@@ -672,7 +671,6 @@ class RawbaseDockerExecution(RawbaseExecution):
         self.logger.debug("Run has finished")
 
     def runStore(self):
-        # TODO Wie kommt die dataset.nt in den Virtuoso
         self.volumeMounts = []
         # self.volumeMounts = [
         #     self.hostLoadDataDir + ':' + self.containerLoadDataMount,
@@ -695,7 +693,6 @@ class RawbaseDockerExecution(RawbaseExecution):
         self.logger.debug("Start rawbase container: {}".format(' '.join(dockerCommand)))
         self.storeProcess = subprocess.Popen(dockerCommand)
         self.logger.debug("Rawbase docker process is: {}".format(self.storeProcess.pid))
-        # self.repositoryPath = self.hostTargetDir
 
     def pause(self):
         programPause = input("Press the <ENTER> key to continue...")

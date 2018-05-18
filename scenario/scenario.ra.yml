@@ -1,4 +1,4 @@
-bsbmLocation: "/home/norman/Documents/Arbeit/LEDS/Owncloud/Documents/Arbeit/bsbmtools.r43ples"
+bsbmLocation: "../bsbmtools-0.2"
 executable: "quit"
 repetitions: 1
 bsbmRuns: 1
@@ -9,8 +9,16 @@ logBasePath: "logs"
 bareRepo: false
 profiling: false
 executionType: "QuitDocker"
+bsbmQueryLogFile: "../bsbmtools-0.2/dataset_update.nt"
+bsbmLogMode: "plain"
 
 scenarios:
+    - "Rawbase": {
+        evalMode: "complete",
+        executionType: "RawbaseDocker",
+        basbmRuns: 10,  # queries to be executed
+        basbmRevisions: 10 # if more revisions (r43ples) than queries we want to execute
+    }
     - "RA_Quit": {
         evalMode: "ra",
         repoDir: "/tmp/repo",
