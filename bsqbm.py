@@ -400,13 +400,13 @@ class QuitExecution(Execution):
         self.storeProcess = subprocess.Popen(quitCommand)
         self.logger.debug("Quit process is: {}".format(self.storeProcess.pid))
 
-    def runBSBM(self):
+    def runBSBM(self, usecaseFile="quit.sparql.txt"):
         arguments = "{} -runs {} -w {} -dg \"urn:bsbm\" -o {} -ucf {} -udataset {} -u {}".format(
             "http://localhost:5000/sparql",
             self.bsbmRuns,
             self.bsbmWarmup,
             os.path.abspath(os.path.join(self.logPath, self.runName + ".xml")),
-            os.path.join("usecases", self.usecase, "quit.sparql.txt"),
+            os.path.join("usecases", self.usecase, usecaseFile),
             "dataset_update.nt",
             "http://localhost:5000/sparql"
         )
@@ -454,6 +454,9 @@ class UwsgiExecution(QuitExecution):
 
 
 class QuitOldExecution(QuitExecution):
+
+    def runBSBM(self):
+        super.runBSBM("sparql.txt")
 
     def prepare_repository(self, directory):
         repo = pygit2.init_repository(directory)  # git init $directory
