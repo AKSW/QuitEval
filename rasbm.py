@@ -79,6 +79,13 @@ class RandomAccessExecution(Execution):
                 self.rasbmRevisions,  # max number of r43ples revision
                 os.path.abspath(os.path.join(self.logPath, self.runName)))  # log dir
             executable = './evalRevisions.py'
+        elif self.platform == 'rawbase':
+            TODO we need a random access file that will collect all revisions
+            arguments = "--endpoint {} --runs {} --logdir {}".format(
+                self.default_endpoints[self.platform],  # endpoint
+                self.rasbmRuns,  # number of queries
+                os.path.abspath(os.path.join(self.logPath, self.runName)))  # log dir
+            executable = './evalRawbase.py'
 
         self.arguments = shlex.split(arguments)
         self.logger.debug("Start RASBM ({}) for {} with {}".format(
