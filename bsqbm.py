@@ -456,7 +456,7 @@ class UwsgiExecution(QuitExecution):
 class QuitOldExecution(QuitExecution):
 
     def runBSBM(self):
-        super.runBSBM("sparql.txt")
+        super(QuitOldExecution, self).runBSBM("sparql.txt")
 
     def prepare_repository(self, directory):
         repo = pygit2.init_repository(directory)  # git init $directory
