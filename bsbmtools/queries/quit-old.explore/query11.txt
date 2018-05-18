@@ -1,5 +1,4 @@
 SELECT ?property ?hasValue ?isValueOf
-FROM <urn:bsbm>
 WHERE {
   { %OfferXYZ% ?property ?hasValue }
   UNION

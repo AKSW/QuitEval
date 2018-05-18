@@ -4,9 +4,8 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 
 SELECT DISTINCT ?product ?label ?propertyTextual
-FROM <urn:bsbm>
 WHERE {
-    {
+    { 
        ?product rdfs:label ?label .
        ?product rdf:type %ProductType% .
        ?product bsbm:productFeature %ProductFeature1% .
@@ -21,8 +20,8 @@ WHERE {
 	   ?product bsbm:productFeature %ProductFeature3% .
        ?product bsbm:productPropertyTextual1 ?propertyTextual .
 	   ?product bsbm:productPropertyNumeric2 ?p2 .
-	   FILTER ( ?p2> %y% )
-    }
+	   FILTER ( ?p2> %y% ) 
+    } 
 }
 ORDER BY ?label
 OFFSET 5

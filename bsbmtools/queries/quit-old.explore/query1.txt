@@ -4,14 +4,13 @@ PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
 
 SELECT DISTINCT ?product ?label
-FROM <urn:bsbm>
-WHERE {
+WHERE { 
     ?product rdfs:label ?label .
     ?product a %ProductType% .
-    ?product bsbm:productFeature %ProductFeature1% .
-    ?product bsbm:productFeature %ProductFeature2% .
-    ?product bsbm:productPropertyNumeric1 ?value1 .
-	FILTER (?value1 > %x%)
+    ?product bsbm:productFeature %ProductFeature1% . 
+    ?product bsbm:productFeature %ProductFeature2% . 
+    ?product bsbm:productPropertyNumeric1 ?value1 . 
+	FILTER (?value1 > %x%) 
 	}
 ORDER BY ?label
 LIMIT 10

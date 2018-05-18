@@ -1,9 +1,8 @@
 PREFIX bsbm: <http://www4.wiwiss.fu-berlin.de/bizer/bsbm/v01/vocabulary/>
-PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#> 
 PREFIX dc: <http://purl.org/dc/elements/1.1/>
 
 SELECT DISTINCT ?offer ?price
-FROM <urn:bsbm>
 WHERE {
 	?offer bsbm:product %ProductXYZ% .
 	?offer bsbm:vendor ?vendor .
