@@ -11,7 +11,7 @@ from executeQueryLog import MonitorThread
 
 class EvalRawbase:
     logFile = ''
-    parents = []
+    revisions = []
 
     QUERY = """
         SELECT * WHERE { graph ?g { ?s ?p ?o .}} LIMIT 10"""
@@ -38,34 +38,23 @@ class EvalRawbase:
         else:
             raise Exception('Expect integer for argument "runs", got {}, {}'.format(runs, type(runs)))
 
-    def collect(self, parents):
-        start = datetime.datetime.now()
-        child = ""
-        while True:
-            parent = self.getParent(child)
-            if child == parent:
-                break
-            self.parents.append(parent)
-            child = parent
-        end = datetime.datetime.now()
-        self.timePerRevision = (end-start)/len(self.parents)
 
-    def rwbaseGetParent(self, child):
-        # TODO Nate do you know the query to get the first named revision
-        query = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {graph <urn:rawbase:provenance> {?entity a prov:Entity. ?activity prov:generated ?entity ; prov:atTime ?time}} order by desc(?time) limit 1"
+    def getRevisions(self):
+        query = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {graph <urn:rawbase:provenance> {?entity a prov:Entity. ?activity prov:generated ?entity ; prov:atTime ?time}} order by desc(?time)"
 
         response = requests.post(self.endpoint, data={'query': query},
                                  headers={'Accept': 'text/csv'})
 
         if len(response.text.split("\n")) > 0:
-            return response.text.split("\n")[1].strip("\"")
-        return ""
+            revisions = response.text.split("\n")
+            for line in revisions[1:]:
+                self.revisions.append(strip("\""))
 
     def runBenchmark(self):
 
         while i < self.runs:
             with open(self.logFile, 'a') as executionLog:
-                ref = random.choice(self.parents)
+                ref = random.choice(self.revisions)
                 start, end = self.postRequest(ref)
                 data = [ref, str(end - start), str(start), str(end), str((end - start) + self.timePerRevision)]
                 executionLog.write(' '.join(data) + '\n')
@@ -136,6 +125,8 @@ if __name__ == '__main__':
         logFile='eval.revisions.log',
         logDir=args.logdir,
         runs=args.runs)
+
+    bm.getRevisions()
 
     if args.processid:
         mon = MonitorThread(logDir=args.logdir, logFile='memory.revisions.log')
