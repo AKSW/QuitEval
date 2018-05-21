@@ -49,7 +49,7 @@ class QueryLogExecuter:
 
         from lsbm import lsbm
         lsbm_instance = lsbm("http://example.org/", "urn:bsbm", self.store)
-        lsbm_instance.prepare(50, self.queryLog)
+        lsbm_instance.prepare(self.count, self.queryLog)
 
         self.queries = lsbm_instance.queryList
 
