@@ -69,33 +69,27 @@ class QueryLogExecuter:
             delete_triples = 0
             patterns = {'insert': {
                             'quit': 'INSERT DATA {{GRAPH <urn:bsbm> {{ {} }} }}',
-                            'r43ples': 'INSERT DATA {GRAPH <urn:bsbm> REVISION "master" INSERT DATA {{ {} }}',
+                            'r43ples': 'INSERT DATA {{GRAPH <urn:bsbm> REVISION "master" INSERT DATA {{ {} }}',
                             'rawbase': 'INSERT DATA {{ {} }} '},
                         'delete': {
                             'quit': 'DELETE DATA {{GRAPH <urn:bsbm> {{ {} }} }}',
-                            'r43ples': 'DELETE DATA {GRAPH <urn:bsbm> REVISION "master" {{ {} }}',
+                            'r43ples': 'DELETE DATA {{GRAPH <urn:bsbm> REVISION "master" {{ {} }}',
                             'rawbase': 'DELETE DATA {{ {} }}'}}
 
             queryType = 'insert'
             with open(self.queryLog, 'r') as f:
-                for i, line in enumerate(f):
-                    if len(queries)+1 > self.count/2:
-                        break
-                    line = line.strip()
-                    query.append(line)
-                    if i != 0 and i % self.triples == 0:
-                        queries.append(patterns[queryType][self.store].format(' '.join(query)))
-                        query = []
-
-            queryType = 'delete'
-            with open(self.queryLog, 'r') as f:
-                for i, line in enumerate(f):
+                i = 0
+                for line in f:
                     if len(queries)+1 > self.count:
                         break
+                    if line.strip() == "#__SEP__":
+                        continue
+                    i += 1
                     line = line.strip()
                     query.append(line)
                     if i != 0 and i % self.triples == 0:
-                        queries.append(patterns[queryType][self.store].format(' '.join(query)))
+                        queries.append(patterns['insert'][self.store].format(' '.join(query)))
+                        queries.append(patterns['delete'][self.store].format(' '.join(query)))
                         query = []
 
         if len(queries) < self.count:
@@ -113,14 +107,14 @@ class QueryLogExecuter:
 
     def runQueriesRest(self):
         for query in self.queries:
-            with open(self.logFile, 'a') as executionLog:
+            with open(self.logFile, 'a+') as executionLog:
                 start, end = self.postRequest(query)
                 data = [str(end - start), str(start), str(end)]
                 executionLog.write(' '.join(data) + '\n')
 
     def runQueriesRawbase(self):
         for query in self.queries:
-            with open(self.logFile, 'a') as executionLog:
+            with open(self.logFile, 'a+') as executionLog:
                 start, end = self.rawbaseRequest(query)
                 data = [str(end - start), str(start), str(end)]
                 executionLog.write(' '.join(data) + '\n')
@@ -286,7 +280,7 @@ def parseArgs(args):
         '-C',
         '--count',
         type=int,
-        default=1000,
+        default=50,
         help='The total number of queries that will be executed.')
 
     parser.add_argument(

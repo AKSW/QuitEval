@@ -43,10 +43,10 @@ class RandomAccessExecution(Execution):
     def runQueryLog(self):
         arguments = "--endpoint {} --logdir {} --querylog {} --mode {} --store {} --virtuoso {}".format(
             self.default_endpoints[self.platform],  # endpoint
-            os.path.abspath(os.path.join(self.logPath, self.runName)),  # log dir
+            os.path.abspath(self.logPath),  # log dir
             self.bsbmQueryLogFile,  # query log file
             self.bsbmLogMode,  # mode
-            self.platfom,  # store
+            self.platform,  # store
             self.rasbmVirtuoso)  # virtuoso
         executable = './executeQueryLog.py'
 
@@ -55,7 +55,7 @@ class RandomAccessExecution(Execution):
             'Random Access (' + executable + ')', self.platform, arguments))
 
         if self.evalMode in ['both', 'complete']:
-            command = executable + shlex.split(arguments)
+            command = executable + " " + arguments
             print(command)
             self.runRandomAccess(command)
         else:
@@ -80,7 +80,7 @@ class RandomAccessExecution(Execution):
                 os.path.abspath(os.path.join(self.logPath, self.runName)))  # log dir
             executable = './evalRevisions.py'
         elif self.platform == 'rawbase':
-            TODO we need a random access file that will collect all revisions
+            #TODO we need a random access file that will collect all revisions
             arguments = "--endpoint {} --runs {} --logdir {}".format(
                 self.default_endpoints[self.platform],  # endpoint
                 self.rasbmRuns,  # number of queries
@@ -92,7 +92,7 @@ class RandomAccessExecution(Execution):
             'Random Access (' + executable + ')', self.platform, arguments))
 
         if self.evalMode in ['both', 'complete']:
-            commands = qlCommand + ';' + executable + shlex.split(arguments)
+            commands = qlCommand + ';' + executable + " " + arguments
             self.bsbmProcess = subprocess.Popen(
                 commands, shell=True)
         else:
