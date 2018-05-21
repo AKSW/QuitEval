@@ -8,13 +8,28 @@ from random import seed, randint, sample
 
 class lsbm:
 
-    def __init__(self, baseUri, defaultGraph):
+    query_patterns = {
+        'quit': '{query_type} {{GRAPH <{graph}> {{ {body} }} }}',
+        'r43ples': '{query_type} {{GRAPH <{graph}> REVISION "master" {{ {body} }}',
+        'rawbase': '{query_type} {{ {body} }}'}
+
+    def __init__(self, baseUri, defaultGraph, store):
         self.baseUri = baseUri
         self.defaultGraph = defaultGraph
+        self.store = store
 
-    def prepare(self, numberOfResources):
-        self.toInsert = set([self.baseUri + str(r) for r in set(range(numberOfResources))])
-        self.toDelete = set()
+    def prepare(self, numberOfStatements, queryLog):
+        self.toInsert = []
+        with open(queryLog, 'r') as f:
+            for line in f:
+                if len(self.toInsert) >= numberOfStatements:
+                    break
+                if line.strip() == "#__SEP__":
+                    continue
+                line = line.strip()
+                self.toInsert.append(line)
+                print(line)
+        self.toDelete = []
         self.prepareQueryList()
 
     def prepareQueryList(self):
@@ -23,46 +38,44 @@ class lsbm:
             direction = randint(0,1)
             try:
                 if direction:
+                    print("insert")
                     self.queryList.append(self.prepareInsert())
                 else:
+                    print("delete")
                     self.queryList.append(self.prepareDelete())
             except ValueError as e:
-                if len(self.toInsert) < 1 and len(self.toDelete) < 1:
-                    print("all done")
-                    break
+                pass
+            print(len(self.toInsert), len(self.toDelete))
+            if len(self.toInsert) < 1 and len(self.toDelete) < 1:
+                print("all done")
+                break
+        print("done prepare query list")
         for query in self.queryList:
             print(query)
 
+    def removeListFromList(self, orig, remove):
+        return list((item for item in orig if item not in remove))
+
     def prepareInsert(self):
-        queryBody = ""
-        for resource in sample(self.toInsert, randint(1, math.ceil(len(self.toInsert)/2))):
-            queryBody += '''<{resource}> <urn:pred> "objectA", "objectB" ;
-                           <http://someother/pred> <http://example.org/obj> .
-            '''.format(resource=resource)
-            self.toInsert.remove(resource)
-            self.toDelete.add(resource)
-            #print("add {}".format(resource))
-        if self.defaultGraph:
-            query = "INSERT DATA {{GRAPH <{graph}> {{ {body} }}}}".format(
-                graph=self.defaultGraph, body=queryBody)
-        else:
-            query = "INSERT DATA {{ {body} }}".format(body=queryBody)
+        statementSample = sample(self.toInsert, randint(1, math.ceil(len(self.toInsert)/4)))
+        self.toInsert = self.removeListFromList(self.toInsert, statementSample)
+        self.toDelete.extend(statementSample)
+        #print("add {}".format(statementSample))
+        query = self.query_patterns[self.store].format(
+            query_type='INSERT DATA', graph=self.defaultGraph,
+            body=" ".join(statementSample))
+
+        print(query)
 
         return query
 
     def prepareDelete(self):
-        queryBody = ""
-        for resource in sample(self.toDelete, randint(1, math.ceil(len(self.toDelete)/2))):
-            queryBody += '''<{resource}> <urn:pred> "objectA", "objectB" ;
-                           <http://someother/pred> <http://example.org/obj> .
-            '''.format(resource=resource)
-            self.toDelete.remove(resource)
-            #print("del {}".format(resource))
-        if self.defaultGraph:
-            query = "DELETE DATA {{GRAPH <{graph}> {{ {body} }}}}".format(
-                graph=self.defaultGraph, body=queryBody)
-        else:
-            query = "DELETE DATA {{ {body} }}".format(body=queryBody)
+        statementSample = sample(self.toDelete, randint(1, math.ceil(len(self.toDelete)/4)))
+        self.toDelete = self.removeListFromList(self.toDelete, statementSample)
+        query = self.query_patterns[self.store].format(
+            query_type='DELETE DATA', graph=self.defaultGraph,
+            body=" ".join(statementSample))
+        print(query)
         return query
 
     def rwbaseGetParent(self, rwbVirtuoso):
@@ -129,7 +142,7 @@ if __name__ == '__main__':
         help='The default graphs URI for the test (default None)')
     parser.add_argument(
         '-n',
-        '--numberOfResources',
+        '--numberOfStatements',
         type=int,
         default='10',
         help='The of resources to generate')
@@ -142,5 +155,5 @@ if __name__ == '__main__':
     lsbm = lsbm(args.baseUri, args.defaultGraph)
     #lsbm.rwbaseGetParent()
 
-    lsbm.prepare(args.numberOfResources)
+    lsbm.prepare(args.numberOfStatements, queryLog)
     lsbm.run(args.endpoint, args.endpointType, args.rwb_virtuoso)

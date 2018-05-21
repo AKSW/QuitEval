@@ -46,58 +46,12 @@ class QueryLogExecuter:
             raise Exception('Could not read query log')
 
     def initQueryLog(self):
-        queries = []
-        if self.mode.lower() == 'bsbm-log':
-            if os.path.isfile(self.queryLog):
-                write = False
-                query = []
-                with open(self.queryLog, 'r') as f:
-                    for line in f:
-                        line = line.strip()
-                        if line.startswith('Query string:'):
-                            write = True
-                            query = []
-                        elif line.startswith('Query result'):
-                            write = False
-                            queries.append(' '.join(query))
-                            if len(queries) == self.count:
-                                break
-                        elif write is True:
-                            query.append(line)
-        elif self.mode.lower() == 'dataset_update':
-            query = []
-            delete_triples = 0
-            patterns = {'insert': {
-                            'quit': 'INSERT DATA {{GRAPH <urn:bsbm> {{ {} }} }}',
-                            'r43ples': 'INSERT DATA {{GRAPH <urn:bsbm> REVISION "master" INSERT DATA {{ {} }}',
-                            'rawbase': 'INSERT DATA {{ {} }} '},
-                        'delete': {
-                            'quit': 'DELETE DATA {{GRAPH <urn:bsbm> {{ {} }} }}',
-                            'r43ples': 'DELETE DATA {{GRAPH <urn:bsbm> REVISION "master" {{ {} }}',
-                            'rawbase': 'DELETE DATA {{ {} }}'}}
 
-            queryType = 'insert'
-            with open(self.queryLog, 'r') as f:
-                i = 0
-                for line in f:
-                    if len(queries)+1 > self.count:
-                        break
-                    if line.strip() == "#__SEP__":
-                        continue
-                    i += 1
-                    line = line.strip()
-                    query.append(line)
-                    if i != 0 and i % self.triples == 0:
-                        queries.append(patterns['insert'][self.store].format(' '.join(query)))
-                        queries.append(patterns['delete'][self.store].format(' '.join(query)))
-                        query = []
+        from lsbm import lsbm
+        lsbm_instance = lsbm("http://example.org/", "urn:bsbm", self.store)
+        lsbm_instance.prepare(50, self.queryLog)
 
-        if len(queries) < self.count:
-            print('Did not get enough queries. Found {} queries'.format(len(queries)))
-            sys.exit()
-        else:
-            print('Found {} queries'.format(len(queries)))
-            self.queries = queries
+        self.queries = lsbm_instance.queryList
 
     def runQueries(self):
         if self.store == 'rawbase':
@@ -315,8 +269,6 @@ if __name__ == '__main__':
         virtuoso=args.virtuoso,
         triples=args.triples,
         queryLog=args.querylog)
-
-    exe.initQueryLog()
 
     if args.processid:
         mon = MonitorThread(logDir=args.logdir, logFile=now + '_memory.log')
