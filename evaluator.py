@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 import random
-import argparse
 import requests
 import sys
 import pygit2
 import os
 import datetime
-from executeQueryLog import MonitorThread
 
 
 class Evaluator:
@@ -16,11 +14,11 @@ class Evaluator:
     endpoint=''
     logFile=''
     logDir='/var/logs'
-    runs=10
+    count=10
 
     def postRequest(self, query, ref=None):
         if ref is not None:
-            self.endpoint + '/' + ref
+            endpoint = self.endpoint + '/' + ref
         else:
             endpoint = self.endpoint
 
@@ -58,7 +56,7 @@ class QueryLogExecuter(Evaluator):
             store=None,
             virtuoso=None,
             triples=None,
-            count=None):
+            runs=None):
 
         self.mode = mode
         self.endpoint = endpoint
@@ -67,7 +65,7 @@ class QueryLogExecuter(Evaluator):
         self.logFile = os.path.join(self.logDir, logFile)
         self.mode = mode
         self.store = store
-        self.count = count
+        self.runs = runs
         self.virtuoso = virtuoso
         self.triples = triples
         self.revisionQuery = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {"
@@ -83,24 +81,25 @@ class QueryLogExecuter(Evaluator):
 
         from lsbm import lsbm
         lsbm_instance = lsbm("http://example.org/", "urn:bsbm", self.store)
-        lsbm_instance.prepare(self.count, self.queryLog)
+        lsbm_instance.prepare(self.triples, self.queryLog)
 
         self.queries = lsbm_instance.queryList
 
-    def runQueries(self):
+    def run(self):
         if self.store == 'rawbase':
-            self.runQueriesRawbase()
+            self.runRawbase()
         else:
-            self.runQueriesRest()
+            self.runRest()
+        return len(self.queries)
 
-    def runQueriesRest(self):
+    def runRest(self):
         for query in self.queries:
             with open(self.logFile, 'a+') as executionLog:
                 start, end = self.postRequest(query)
                 data = [str(end - start), str(start), str(end)]
                 executionLog.write(' '.join(data) + '\n')
 
-    def runQueriesRawbase(self):
+    def runRawbase(self):
         for query in self.queries:
             with open(self.logFile, 'a+') as executionLog:
                 start, end = self.rawbaseRequest(query)
@@ -118,65 +117,73 @@ class QueryLogExecuter(Evaluator):
             return parent
         return ""
 
-    def get_size(self, start_path='database/dataset'):
-        total_size = 0
-        for dirpath, dirnames, filenames in os.walk(start_path):
-            total_size += os.path.getsize(dirpath)
-            # self.logger.debug("size {} of {}".format(os.path.getsize(dirpath), dirpath))
-            for f in filenames:
-                fp = os.path.join(dirpath, f)
-                total_size += os.path.getsize(fp)
-                # self.logger.debug("size {} of {}".format(os.path.getsize(fp), fp))
-        return total_size / 1024
+    # def get_size(self, start_path='database/dataset'):
+    #     total_size = 0
+    #     for dirpath, dirnames, filenames in os.walk(start_path):
+    #         total_size += os.path.getsize(dirpath)
+    #         # self.logger.debug("size {} of {}".format(os.path.getsize(dirpath), dirpath))
+    #         for f in filenames:
+    #             fp = os.path.join(dirpath, f)
+    #             total_size += os.path.getsize(fp)
+    #             # self.logger.debug("size {} of {}".format(os.path.getsize(fp), fp))
+    #     return total_size / 1024
+    #
 
-
-class RandomAccess(Evaluator):
+class RandomAccessExecuter(Evaluator):
     """Execute Select Queries randomly over existing reviosions."""
 
     logFile = ''
     commits = []
+    revisions = []
 
     def __init__(
             self,
             platform='',
+            repo='',
+            graph='urn:bsbm',
             endpoint='',
-            revisions=10,
+            expectedRevisions=10,  # important for r43ples
             logFile='',
             logDir='/var/logs',
-            runs=10):
+            count=10):
 
         self.endpoint = endpoint
         self.logDir = logDir
-        self.logFile = os.path.join(self.logDir, logFile)
+        self.graph = graph
 
         if platform not in ['quit', 'r43ples', 'rawbase']:
             print('No platform selected.')
             sys.exit()
 
-        self.platform = platform
-        self.logdir = logDir
-        self.logFile = os.path.join(self.logDir, logFile)
-
-    def initQuit():
-        if platform == 'quit':
-            try:
-                self.repo = pygit2.Repository(repoDir)
-            except Exception:
-                raise Exception('{} is no repository'.format(repoDir))
-
-        if isinstance(revisions, int):
-            self.revisions = revisions
+        if logFile != '':
+            self.logFile = os.path.join(self.logDir, logFile)
         else:
-            raise Exception('Expect integer for argument "revisions", got {}, {}'.format(revisions, type(revisions)))
+            self.logFile = os.path.join(self.logDir, 'ra-' + platform + '.log')
 
-        if isinstance(runs, int):
-            self.runs = runs
+        if isinstance(count, int):
+            self.count = count
         else:
             raise Exception('Expect integer for argument "runs", got {}, {}'.format(runs, type(runs)))
+
+        self.platform = platform
+
+        if platform == 'quit':
+            try:
+                self.repo = pygit2.Repository(repo)
+            except Exception:
+                raise Exception('{} is no repository'.format(repo))
+
+        if isinstance(expectedRevisions, int):
+            self.expectedRevisions = expectedRevisions
+        else:
+            raise Exception('Expect integer for argument "revisions", got {}, {}'.format(
+                expectedRevisions, type(expectedRevisions)))
 
     def getRevisions(self):
         if self.platform == 'quit':
             self.getQuitRevisions()
+        elif self.platform == 'r43ples':
+            self.getR43plesRevisions()
         elif self.platform == 'rawbase':
             self.getRawbaseRevisions()
 
@@ -189,6 +196,18 @@ class RandomAccess(Evaluator):
         self.commits = commits
         print('Found {} commits'.format(len(commits.items())))
 
+    def getR43plesRevisions(self):
+        query = """select ?rev where {{
+            graph <{}-revisiongraph> {{
+                ?s <http://eatld.et.tu-dresden.de/rmo#revisionNumber> ?rev .}} }} ORDER BY ?rev""".format(
+            self.graph)
+
+        response = requests.post(self.endpoint, data={'query': query},
+                                 headers={'Accept': 'application/json'})
+
+        data = response.json()
+        self.revisions = len(data['results']['bindings']) - 1
+
     def getRawbaseRevisions(self):
         query = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {graph <urn:rawbase:provenance> {?entity a prov:Entity. ?activity prov:generated ?entity ; prov:atTime ?time}} order by desc(?time)"
 
@@ -198,25 +217,28 @@ class RandomAccess(Evaluator):
         if len(response.text.split("\n")) > 0:
             revisions = response.text.split("\n")
             for line in revisions[1:]:
-                self.revisions.append(strip("\""))
+                self.revisions.append(line.strip("\""))
 
-    def runBenchmark(self):
+    def run(self):
         if self.platform == 'quit':
-            self.getRunQuitBenchmark()
+            self.runQuitBenchmark()
         elif self.platform == 'r43ples':
-            self.getRunR43ples()
+            self.runR43plesBenchmark()
         elif self.platform == 'rawbase':
-            self.getRunRawbaseBenchmark()
+            self.runRawbaseBenchmark()
 
 
     def runQuitBenchmark(self):
+        if len(self.commits) == 0:
+            print('There are no revisions')
+            return
         i = 1
         query = """
             SELECT * WHERE { graph ?g { ?s ?p ?o .}} LIMIT 10"""
 
 
-        while i < self.runs:
-            with open(self.logFile, 'a') as executionLog:
+        while i < self.count:
+            with open(self.logFile, 'w+') as executionLog:
                 ref = random.choice(self.commits)
                 start, end = self.postRequest(query, ref)
                 data = [ref, str(end - start), str(start), str(end)]
@@ -225,11 +247,15 @@ class RandomAccess(Evaluator):
                 i = i + 1
 
     def runR43plesBenchmark(self):
+        if self.revisions == 0:
+            print('There are no revisions')
+            return
+
         i = 1
         choices = set([0, self.revisions, self.revisions/4, self.revisions*3/4])
 
-        while i < self.runs:
-            with open(self.logFile, 'a') as executionLog:
+        while i < self.count:
+            with open(self.logFile, 'w+') as executionLog:
                 ref = random.choice(choices)
                 query = "SELECT ? WHERE {{ graph <urn:bsbm> REVISION \"{}\" {{ ?s ?p ?o }} }} LIMIT 1".format(ref)
                 start, end = self.postRequest(query)
@@ -239,79 +265,14 @@ class RandomAccess(Evaluator):
                 i = i + 1
 
     def runRawbaseBenchmark(self):
+        if len(self.revisions) == 0:
+            print('There are no revisions')
+            return
         i = 0
-        while i < self.runs:
-            with open(self.logFile, 'a') as executionLog:
+        while i < self.count:
+            with open(self.logFile, 'w+') as executionLog:
                 ref = random.choice(self.revisions)
                 start, end = self.postRequest(ref)
-                data = [ref, str(end - start), str(start), str(end), str((end - start) + self.timePerRevision)]
+                data = [ref, str(end - start), str(start), str(end)]
                 executionLog.write(' '.join(data) + '\n')
                 i = i + 1
-
-
-def parseArgs(args):
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        '-E', '--endpoint',
-        type=str,
-        default='http://localhost:8080/r43ples/sparql',
-        help='Link to the SPARQL-Endpoint')
-
-    parser.add_argument(
-        '-L',
-        '--logdir',
-        type=str,
-        default='/var/logs/',
-        help='The link where to log the benchmark')
-
-    parser.add_argument(
-        '-O',
-        '--observeddir',
-        default='.',
-        help='The directory that should be monitored')
-
-    parser.add_argument(
-        '-P',
-        '--processid',
-        type=int,
-        help='The command name of the process to be monitored')
-
-    parser.add_argument(
-        '-runs', '--runs',
-        type=int,
-        default=10)
-
-    parser.add_argument(
-        '-R',
-        '--revisions',
-        type=int,
-        help='The number of the highest known revision number.')
-
-    return parser.parse_args()
-
-
-if __name__ == '__main__':
-    args = parseArgs(sys.argv[1:])
-    now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
-
-    bm = EvalRevisions(
-        endpoint=args.endpoint,
-        revisions=args.revisions,
-        logFile='eval.revisions.log',
-        logDir=args.logdir,
-        runs=args.runs)
-
-    if args.processid:
-        mon = MonitorThread(logDir=args.logdir, logFile='memory.revisions.log')
-
-        mon.setstoreProcessAndDirectory(
-            pid=args.processid,
-            observedDir=args.observeddir)
-        mon.start()
-
-    print('Starting Benchmark')
-    bm.runBenchmark()
-    print('Benchmark finished')
-
-    if args.processid:
-        mon.stop()

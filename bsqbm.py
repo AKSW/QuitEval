@@ -517,7 +517,10 @@ class QuitDockerExecution(QuitExecution):
         time.sleep(sleep)
         self.runBSBM()
         if (block):
-            self.bsbmProcess.wait()
+            try:
+                self.bsbmProcess.wait()
+            except AttributeError:
+                pass
         self.logger.debug("Run has finished")
 
     def runStore(self):
@@ -579,7 +582,10 @@ class R43plesDockerExecution(R43plesExecution):
         time.sleep(5)
         self.runBSBM()
         if (block):
-            self.bsbmProcess.wait()
+            try:
+                self.bsbmProcess.wait()
+            except AttributeError:
+                pass
         self.logger.debug("Run has finished")
 
     def runStore(self):
@@ -657,22 +663,24 @@ class RawbaseDockerExecution(RawbaseExecution):
     volumeMounts = []
     envVariables = []
 
-    def run(self, block=False, sleep=5):
+    def run(self, block=False, sleep=25):
 
         self.logger.debug("start scenario {}".format(self.runName))
-        self.hostLoadDataDir = self.repositoryPath
 
         self.running = True
         self.runStore()
-        time.sleep(25)
+        time.sleep(sleep)
         self.monitor = MonitorThread()
         self.monitor.setstoreProcessAndDirectory(
-            self.storeProcess, self.hostTbdDir, self.logPath)
+            self.storeProcess, self.repositoryPath, self.logPath)
         self.monitor.start()
         time.sleep(sleep)
         self.runBSBM()
         if (block):
-            self.bsbmProcess.wait()
+            try:
+                self.bsbmProcess.wait()
+            except AttributeError:
+                pass
         self.logger.debug("Run has finished")
 
     def runStore(self):
@@ -731,9 +739,9 @@ class RawbaseDockerExecution(RawbaseExecution):
 
     def __del__(self):
         if self.running:
+            self.terminate()
             self.logger.debug("Destructor called for {} and {}".format(
                 self.storeProcess.pid, self.bsbmProcess.pid))
-            self.terminate()
 
 
 class ScenarioReader:

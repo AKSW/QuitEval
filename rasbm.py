@@ -3,13 +3,11 @@
 import logging
 import sys
 import os
-import shlex
-import subprocess
 from bsqbm import Execution, ScenarioReader, BSQBMRunner, QuitDockerExecution, QuitExecution, main as bsqbmMain
 from bsqbm import R43plesExecution, R43plesDockerExecution, RawbaseDockerExecution
+from evaluator import QueryLogExecuter, RandomAccessExecuter
 
-
-logger = logging.getLogger('quit-ra')
+logger = logging.getLogger('quit-eval.rasbm')
 logger.setLevel(logging.DEBUG)
 formatter = logging.Formatter(
     '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -21,15 +19,21 @@ ch.setFormatter(formatter)
 
 
 class RARunner(BSQBMRunner):
+    """Will be passed to bsqmMain."""
+
     pass
 
 
 class RandomAccessExecution(Execution):
     """Execute Random Access Queries or a BSBM Query Log on supported Backends."""
-    logger = logging.getLogger('quit-ra.execution')
-    default_endpoints = {'quit': 'http://localhost:5000/sparql',
-                         'r43ples': 'http://localhost:8080/r43ples/sparql',
-                         'rawbase': 'http://localhost:8080/rawbase/update'}
+
+    logger = logging.getLogger('quit-eval.rasbm.ra-execution')
+    default_endpoints = {'query': {'quit': 'http://localhost:5000/sparql',
+                                   'r43ples': 'http://localhost:8080/r43ples/sparql',
+                                   'rawbase': 'http://localhost:8080/rawbase/sparql'},
+                         'update': {'quit': 'http://localhost:5000/sparql',
+                                    'r43ples': 'http://localhost:8080/r43ples/sparql',
+                                    'rawbase': 'http://localhost:8080/rawbase/update'}}
 
     def runBSBM(self):
         self.logger.info('Starting RASBM with mode {}'.format(self.evalMode))
@@ -39,95 +43,101 @@ class RandomAccessExecution(Execution):
             self.runQueryLog()
         elif self.evalMode.lower() in ['both', 'complete']:
             self.runQueryLog()
+            self.runRandomAccess()
 
     def runQueryLog(self):
-        arguments = "--endpoint {} --logdir {} --querylog {} --mode {} --store {} --virtuoso {}".format(
-            self.default_endpoints[self.platform],  # endpoint
-            os.path.abspath(self.logPath),  # log dir
-            self.bsbmQueryLogFile,  # query log file
-            self.bsbmLogMode,  # mode
-            self.platform,  # store
-            self.rasbmVirtuoso)  # virtuoso
-        executable = './executeQueryLog.py'
+        self.logger.info("Platform:", self.platform)
+        ql = QueryLogExecuter(
+            endpoint=self.default_endpoints['update'][self.platform],  # endpoint
+            logDir=os.path.abspath(self.logPath),  # log dir
+            queryLog=self.bsbmQueryLogFile,  # query log file
+            mode=self.bsbmLogMode,  # mode
+            store=self.platform,  # store
+            triples=self.bsbmQueryLogTriples,
+            virtuoso=self.rasbmVirtuoso)  # virtuoso
 
-        self.arguments = shlex.split(arguments)
-        self.logger.debug("Start RASBM ({}) for {} with {}".format(
-            'Random Access (' + executable + ')', self.platform, arguments))
+        self.logger.debug("Start QueryLogExecuter for {}".format(
+            self.platform))
+        ql.run()
 
-        if self.evalMode in ['both', 'complete']:
-            command = executable + " " + arguments
-            print(command)
-            self.runRandomAccess(command)
-        else:
-            self.bsbmProcess = subprocess.Popen(
-                [executable] + self.arguments)
-            logger.info(self.bsbmProcess)
 
-    def runRandomAccess(self, qlCommand=None):
-        print("Random Access")
+    def runRandomAccess(self):
+        self.logger.info("Random Access")
+        self.logger.info("Platform:", self.platform)
         if self.platform == 'quit':
-            arguments = "--endpoint {} --runs {} --logdir {} --repodir {}".format(
-                self.default_endpoints[self.platform],  # endpoint
-                self.rasbmRuns,  # number of queries
-                os.path.abspath(os.path.join(self.logPath, self.runName)),  # log dir
-                self.repoDir)  # repodir
-            print(arguments)
-            executable = './evalCommits.py'
+            ra = RandomAccessExecuter(
+                endpoint=self.default_endpoints['query'][self.platform],  # endpoint
+                platform=self.platform,  # platform
+                count=self.rasbmRuns,  # number of queries
+                logDir=os.path.abspath(self.logPath),  # log dir
+                repo=self.repositoryPath)  # repodir
         elif self.platform == 'r43ples':
-            arguments = "--endpoint {} --runs {} --revisions {} --logdir {}".format(
-                self.default_endpoints[self.platform],  # endpoint
-                self.rasbmRuns,  # number of queries
-                self.rasbmRevisions,  # max number of r43ples revision
-                os.path.abspath(os.path.join(self.logPath, self.runName)))  # log dir
-            executable = './evalRevisions.py'
+            ra = RandomAccessExecuter(
+                endpoint=self.default_endpoints['query'][self.platform],  # endpoint
+                platform=self.platform,  # platform
+                count=self.rasbmRuns,  # number of queries
+                logDir=os.path.abspath(os.path.join(self.logPath, self.runName)))  # log dir
         elif self.platform == 'rawbase':
-            #TODO we need a random access file that will collect all revisions
-            arguments = "--endpoint {} --runs {} --logdir {}".format(
-                self.default_endpoints[self.platform],  # endpoint
-                self.rasbmRuns,  # number of queries
-                os.path.abspath(os.path.join(self.logPath, self.runName)))  # log dir
-            executable = './evalRawbase.py'
+            self.repodir=os.path.abspath(os.path.join(self.logPath, 'repo')),  # log dir
+            ra = RandomAccessExecuter(
+                endpoint=self.default_endpoints['query'][self.platform],  # endpoint
+                platform=self.platform,  # platform
+                count=self.rasbmRuns,  # number of queries
+                logDir=os.path.abspath(os.path.join(self.logPath)))  # log dir
 
-        self.arguments = shlex.split(arguments)
-        self.logger.debug("Start RASBM ({}) for {} with {}".format(
-            'Random Access (' + executable + ')', self.platform, arguments))
+        self.logger.debug("Start Random Access for {}".format(
+            self.platform))
+        ra.getRevisions()
+        ra.run()
 
-        if self.evalMode in ['both', 'complete']:
-            commands = qlCommand + ';' + executable + " " + arguments
-            self.bsbmProcess = subprocess.Popen(
-                commands, shell=True)
-        else:
-            self.bsbmProcess = subprocess.Popen(
-                [executable] + self.arguments)
-        logger.info(self.bsbmProcess)
+
+    def __del__(self):
+        if self.running:
+            self.terminate()
+            self.logger.debug("Destructor called for storeProces {}".format(
+                self.storeProcess.pid))
 
 
 class RaQuitExecution(RandomAccessExecution, QuitExecution):
+    """A class with overloaded method."""
+
     pass
 
 
 class RaR43plesExecution(RandomAccessExecution, R43plesDockerExecution):
+    """A class with overloaded method."""
+
     pass
 
 
 class RaRawbaseExecution(RandomAccessExecution, RawbaseDockerExecution):
+    """A class with overloaded method."""
+
     pass
 
 
 class RaQuitDockerExecution(RandomAccessExecution, QuitDockerExecution):
+    """A class with overloaded method."""
+
     pass
 
 
 class RaR43plesDockerExecution(RandomAccessExecution, R43plesDockerExecution):
+    """A class with overloaded method."""
+
     pass
 
 
 class RaRawbaseDockerExecution(RandomAccessExecution, RawbaseDockerExecution):
+    """A class with overloaded method."""
+
     pass
 
 
 class RaScenarioReader(ScenarioReader):
-    logger = logging.getLogger('ra-quit-eval.scenarioreader')
+    """A yml file reader with more arguments than ScenarioReader."""
+
+    logger = logging.getLogger('quit-eval.rasbm.scenarioreader')
 
     def readScenarios(self, docs, basePath):
 
@@ -160,6 +170,7 @@ class RaScenarioReader(ScenarioReader):
 
         # New features of rasbm
         bsbmQueryLogFile = docs["bsbmQueryLogFile"] if "bsbmQueryLogFile" in docs else None
+        bsbmQueryLogTriples = docs["bsbmQueryLogTriples"] if "bsbmQueryLogTriples" in docs else 40
         bsbmLogMode = docs["bsbmLogMode"] if "bsbmLogMode" in docs else None
         evalMode = docs["evalMode"] if "evalMode" in docs else "ra"
         repoDir = docs["repoDir"] if "repoDir" in docs else None
@@ -228,6 +239,8 @@ class RaScenarioReader(ScenarioReader):
                         execution.two_graphs = two_graphs
 
                     # New RA features
+                    execution.bsbmQueryLogTriples = runConfig[
+                        "bsbmQueryLogTriples"] if "bsbmQueryLogTriples" in runConfig else bsbmQueryLogTriples
                     execution.bsbmQueryLogFile = runConfig[
                         "bsbmQueryLogFile"] if "bsbmQueryLogFile" in runConfig else bsbmQueryLogFile
                     execution.bsbmLogMode = runConfig[
@@ -251,6 +264,7 @@ class RaScenarioReader(ScenarioReader):
                             logger.error('We need to know which store we use. Exiting')
                             sys.exit()
                         execution.platform = platform
+                        logger.info('Found the platform: {}'.format(platform))
 
                     if "image" in runConfig:
                         execution.image = runConfig["image"]
@@ -276,8 +290,8 @@ class RaScenarioReader(ScenarioReader):
 
 if __name__ == '__main__':
 
-    ch.setLevel(logging.DEBUG)
-    logger.addHandler(ch)
+    # ch.setLevel(logging.DEBUG)
+    # logger.addHandler(ch)
 
     if (len(sys.argv) < 2):
         logger.error("You need to specify a scenario")
