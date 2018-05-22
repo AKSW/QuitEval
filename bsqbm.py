@@ -357,7 +357,7 @@ class QuitExecution(Execution):
         # git tag init-graph
         # repo.create_tag("init-graph", str(oid)[:5], pygit2.GIT_OBJ_BLOB, author, "init-graph\n")
 
-    def run(self, block=False):
+    def run(self, block=False, sleep=5):
 
         self.logger.debug("start scenario {}".format(self.runName))
 
@@ -367,7 +367,7 @@ class QuitExecution(Execution):
         self.monitor.setstoreProcessAndDirectory(
             self.storeProcess, self.repositoryPath, self.logPath)
         self.monitor.start()
-        time.sleep(20)
+        time.sleep(sleep)
         self.runBSBM()
         if (block):
             self.bsbmProcess.wait()
@@ -500,7 +500,7 @@ class QuitDockerExecution(QuitExecution):
     portMappings = ['5000:5000']
     envVariables = []
 
-    def run(self, block=False):
+    def run(self, block=False, sleep=20):
 
         self.logger.debug("start scenario {}".format(self.runName))
         self.hostTargetDir = self.repositoryPath
@@ -512,7 +512,7 @@ class QuitDockerExecution(QuitExecution):
         self.monitor.setstoreProcessAndDirectory(
             self.storeProcess, self.repositoryPath, self.logPath)
         self.monitor.start()
-        time.sleep(20)
+        time.sleep(sleep)
         self.runBSBM()
         if (block):
             self.bsbmProcess.wait()
@@ -555,7 +555,7 @@ class R43plesDockerExecution(R43plesExecution):
     volumeMounts = []
     envVariables = ['GRAPH_URI=' + graph]
 
-    def run(self, block=False):
+    def run(self, block=False, sleep=25):
 
         self.logger.debug("start scenario {}".format(self.runName))
         self.hostLoadDataDir = self.repositoryPath
@@ -565,7 +565,7 @@ class R43plesDockerExecution(R43plesExecution):
 
         self.running = True
         self.runStore()
-        time.sleep(25)
+        time.sleep(sleep)
         self.postPrepare('urn:bsbm')
         time.sleep(2)
         self.postPrepare('urn:bsbm2')
@@ -655,7 +655,7 @@ class RawbaseDockerExecution(RawbaseExecution):
     volumeMounts = []
     envVariables = []
 
-    def run(self, block=False):
+    def run(self, block=False, sleep=5):
 
         self.logger.debug("start scenario {}".format(self.runName))
         self.hostLoadDataDir = self.repositoryPath
@@ -667,7 +667,7 @@ class RawbaseDockerExecution(RawbaseExecution):
         self.monitor.setstoreProcessAndDirectory(
             self.storeProcess, self.hostTbdDir, self.logPath)
         self.monitor.start()
-        time.sleep(5)
+        time.sleep(sleep)
         self.runBSBM()
         if (block):
             self.bsbmProcess.wait()

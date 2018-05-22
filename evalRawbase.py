@@ -117,7 +117,6 @@ def parseArgs(args):
 
 if __name__ == '__main__':
     args = parseArgs(sys.argv[1:])
-    now = datetime.datetime.now().strftime('%Y-%m-%d-%H-%M')
 
     bm = EvalRawbase(
         endpoint=args.endpoint,

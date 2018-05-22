@@ -64,13 +64,14 @@ class RandomAccessExecution(Execution):
             logger.info(self.bsbmProcess)
 
     def runRandomAccess(self, qlCommand=None):
-
+        print("Random Access")
         if self.platform == 'quit':
             arguments = "--endpoint {} --runs {} --logdir {} --repodir {}".format(
                 self.default_endpoints[self.platform],  # endpoint
                 self.rasbmRuns,  # number of queries
                 os.path.abspath(os.path.join(self.logPath, self.runName)),  # log dir
                 self.repoDir)  # repodir
+            print(arguments)
             executable = './evalCommits.py'
         elif self.platform == 'r43ples':
             arguments = "--endpoint {} --runs {} --revisions {} --logdir {}".format(
