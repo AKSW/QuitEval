@@ -126,7 +126,6 @@ class MonitorThread(threading.Thread):
             self.logger.warning("Monitor exception when writing the last line: {}".format(str(exc)))
         self.logger.debug("Monitor Run finished and all resources are closed")
 
-
     def get_size(self, start_path='.'):
         total_size = 0
         for dirpath, dirnames, filenames in os.walk(start_path):
@@ -171,7 +170,6 @@ class Execution:
                 with open(os.path.join(directory, "graph2.nq"), 'w') as targetGraph:
                     for line in sorted(list(sourceGraph)):
                         targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm2> .\n")
-
 
     def terminate(self):
         self.logger.debug("Terminate has been called on execution")
@@ -282,6 +280,7 @@ class RawbaseExecution(Execution):
 
     def runBSBM(self):
         pass
+
 
 class QuitExecution(Execution):
 
@@ -423,6 +422,7 @@ class QuitExecution(Execution):
         self.logger.debug(
             "BSBM Process ID is: {}".format(self.bsbmProcess.pid))
 
+
 class AdhsExecution(QuitExecution):
 
     def runStore(self):
@@ -431,6 +431,7 @@ class AdhsExecution(QuitExecution):
         self.logger.debug("Start adhs: {}".format(adhsCommand))
         self.storeProcess = subprocess.Popen(adhsCommand)
         self.logger.debug("Adhs process is: {}".format(self.storeProcess.pid))
+
 
 class AdhsUwsgiExecution(QuitExecution):
 
@@ -442,6 +443,7 @@ class AdhsUwsgiExecution(QuitExecution):
         self.logger.debug("Start adhs with uwsgi: {}".format(adhsCommand))
         self.storeProcess = subprocess.Popen(adhsCommand)
         self.logger.debug("Adhs uwsgi process is: {}".format(self.storeProcess.pid))
+
 
 class UwsgiExecution(QuitExecution):
 
@@ -493,6 +495,7 @@ class QuitOldExecution(QuitExecution):
         self.logger.debug("Start quit: {} in {}".format(quitCommand, self.repositoryPath))
         self.storeProcess = subprocess.Popen(quitCommand, cwd=self.repositoryPath)
         self.logger.debug("Quit process is: {}".format(self.storeProcess.pid))
+
 
 class QuitDockerExecution(QuitExecution):
     logger = logging.getLogger('quit-eval.docker_execution')
@@ -547,6 +550,28 @@ class QuitDockerExecution(QuitExecution):
         self.storeProcess = subprocess.Popen(dockerCommand)
         self.logger.debug("Quit docker process is: {}".format(self.storeProcess.pid))
         self.repositoryPath = self.hostTargetDir
+
+    def terminate(self):
+        self.logger.debug("Terminate has been called on execution")
+        if self.running:
+            # self.logger.debug(self.mem_usage)
+            # self.memory_log.close()
+            if hasattr(self, "bsbmProcess"):
+                self.terminateProcess(self.bsbmProcess)
+            # mv bsbm/run.log $QUIT_EVAL_DIR/$LOGDIR/$RUNDIR-run.log
+            if (os.path.exists(os.path.join(self.bsbmLocation, "run.log"))):
+                os.rename(os.path.join(self.bsbmLocation, "run.log"),
+                          os.path.join(self.logPath, self.runName + "-run.log"))
+            if hasattr(self, "storeProcess"):
+                subprocess.Popen('docker rm -f bsbm.docker', shell=True, stdout=subprocess.PIPE)
+                time.sleep(15)
+                # self.terminateProcess(self.storeProcess)
+            self.logger.debug("Call monitor.stop()")
+            self.monitor.stop()
+            self.logger.debug("monitor.stop() called")
+            self.monitor.join()
+            self.logger.debug("monitor.join() finished")
+            self.running = False
 
 
 class R43plesDockerExecution(R43plesExecution):
