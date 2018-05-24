@@ -46,7 +46,8 @@ class RandomAccessExecution(Execution):
             self.runRandomAccess()
 
     def runQueryLog(self):
-        self.logger.info("Platform:", self.platform)
+        self.logger.info("Query Log Execution")
+        self.logger.info("Platform: {}".format(self.platform))
         ql = QueryLogExecuter(
             endpoint=self.default_endpoints['update'][self.platform],  # endpoint
             logDir=os.path.abspath(self.logPath),  # log dir
@@ -62,8 +63,8 @@ class RandomAccessExecution(Execution):
 
 
     def runRandomAccess(self):
-        self.logger.info("Random Access")
-        self.logger.info("Platform:", self.platform)
+        self.logger.info("Random Access Execution")
+        self.logger.info("Platform: {}".format(self.platform))
         if self.platform == 'quit':
             ra = RandomAccessExecuter(
                 endpoint=self.default_endpoints['query'][self.platform],  # endpoint
@@ -83,6 +84,7 @@ class RandomAccessExecution(Execution):
                 endpoint=self.default_endpoints['query'][self.platform],  # endpoint
                 platform=self.platform,  # platform
                 count=self.rasbmRuns,  # number of queries
+                virtuoso=self.rasbmVirtuoso,  # virtuoso
                 logDir=os.path.abspath(os.path.join(self.logPath)))  # log dir
 
         self.logger.debug("Start Random Access for {}".format(

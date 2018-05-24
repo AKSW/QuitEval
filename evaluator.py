@@ -30,7 +30,18 @@ class Evaluator:
         end = datetime.datetime.now()
         return start, end
 
-    def rawbaseRequest(self, query):
+    def rawbaseQueryRequest(self, query):
+        start = datetime.datetime.now()
+        # params = {"rwb-version": ref}
+        res = requests.post(
+            self.endpoint,
+            data={'query': query},
+            # params=params,
+            headers={'Accept': 'application/json'})
+        end = datetime.datetime.now()
+        return start, end
+
+    def rawbaseUpdateRequest(self, query):
         start = datetime.datetime.now()
         parent = self.rwbaseGetParent()
         params = {"rwb-version": parent}
@@ -48,25 +59,25 @@ class QueryLogExecuter(Evaluator):
 
     def __init__(
             self,
-            endpoint='http://localhost:8080/r43ples/sparql',
+            endpoint='',
+            virtuoso=None,
             logFile='execution.log',
             logDir='/var/logs',
             queryLog='',
             mode='bsbm-log',
             store=None,
-            virtuoso=None,
             triples=None,
             runs=None):
 
         self.mode = mode
         self.endpoint = endpoint
+        self.virtuoso = virtuoso
         self.queryLog = queryLog
         self.logDir = logDir
         self.logFile = os.path.join(self.logDir, logFile)
         self.mode = mode
         self.store = store
         self.runs = runs
-        self.virtuoso = virtuoso
         self.triples = triples
         self.revisionQuery = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {"
         self.revisionQuery += "graph <urn:rawbase:provenance> {?entity a prov:Entity. "
@@ -93,16 +104,16 @@ class QueryLogExecuter(Evaluator):
         return len(self.queries)
 
     def runRest(self):
-        for query in self.queries:
-            with open(self.logFile, 'a+') as executionLog:
+        with open(self.logFile, 'a+') as executionLog:
+            for query in self.queries:
                 start, end = self.postRequest(query)
                 data = [str(end - start), str(start), str(end)]
                 executionLog.write(' '.join(data) + '\n')
 
     def runRawbase(self):
-        for query in self.queries:
-            with open(self.logFile, 'a+') as executionLog:
-                start, end = self.rawbaseRequest(query)
+        with open(self.logFile, 'a+') as executionLog:
+            for query in self.queries:
+                start, end = self.rawbaseUpdateRequest(query)
                 data = [str(end - start), str(start), str(end)]
                 executionLog.write(' '.join(data) + '\n')
 
@@ -142,12 +153,13 @@ class RandomAccessExecuter(Evaluator):
             repo='',
             graph='urn:bsbm',
             endpoint='',
-            expectedRevisions=10,  # important for r43ples
             logFile='',
+            virtuoso='',
             logDir='/var/logs',
             count=10):
 
         self.endpoint = endpoint
+        self.virtuoso = virtuoso
         self.logDir = logDir
         self.graph = graph
 
@@ -163,7 +175,7 @@ class RandomAccessExecuter(Evaluator):
         if isinstance(count, int):
             self.count = count
         else:
-            raise Exception('Expect integer for argument "runs", got {}, {}'.format(runs, type(runs)))
+            raise Exception('Expect integer for argument "runs", got {}, {}'.format(count, type(count)))
 
         self.platform = platform
 
@@ -172,12 +184,6 @@ class RandomAccessExecuter(Evaluator):
                 self.repo = pygit2.Repository(repo)
             except Exception:
                 raise Exception('{} is no repository'.format(repo))
-
-        if isinstance(expectedRevisions, int):
-            self.expectedRevisions = expectedRevisions
-        else:
-            raise Exception('Expect integer for argument "revisions", got {}, {}'.format(
-                expectedRevisions, type(expectedRevisions)))
 
     def getRevisions(self):
         if self.platform == 'quit':
@@ -211,7 +217,7 @@ class RandomAccessExecuter(Evaluator):
     def getRawbaseRevisions(self):
         query = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {graph <urn:rawbase:provenance> {?entity a prov:Entity. ?activity prov:generated ?entity ; prov:atTime ?time}} order by desc(?time)"
 
-        response = requests.post(self.endpoint, data={'query': query},
+        response = requests.post(self.virtuoso, data={'query': query},
                                  headers={'Accept': 'text/csv'})
 
         if len(response.text.split("\n")) > 0:
@@ -227,7 +233,6 @@ class RandomAccessExecuter(Evaluator):
         elif self.platform == 'rawbase':
             self.runRawbaseBenchmark()
 
-
     def runQuitBenchmark(self):
         if len(self.commits) == 0:
             print('There are no revisions')
@@ -236,14 +241,12 @@ class RandomAccessExecuter(Evaluator):
         query = """
             SELECT * WHERE { graph ?g { ?s ?p ?o .}} LIMIT 10"""
 
-
-        while i < self.count:
-            with open(self.logFile, 'w+') as executionLog:
+        with open(self.logFile, 'w+') as executionLog:
+            while i < self.count:
                 ref = random.choice(self.commits)
                 start, end = self.postRequest(query, ref)
                 data = [ref, str(end - start), str(start), str(end)]
                 executionLog.write(' '.join(data) + '\n')
-                print(' '.join(data))
                 i = i + 1
 
     def runR43plesBenchmark(self):
@@ -254,25 +257,27 @@ class RandomAccessExecuter(Evaluator):
         i = 1
         choices = set([0, self.revisions, self.revisions/4, self.revisions*3/4])
 
-        while i < self.count:
-            with open(self.logFile, 'w+') as executionLog:
+        with open(self.logFile, 'w+') as executionLog:
+            while i < self.count:
                 ref = random.choice(choices)
                 query = "SELECT ? WHERE {{ graph <urn:bsbm> REVISION \"{}\" {{ ?s ?p ?o }} }} LIMIT 1".format(ref)
                 start, end = self.postRequest(query)
                 data = [ref, str(end - start), str(start), str(end)]
                 executionLog.write(' '.join(data) + '\n')
-                print(' '.join(data))
                 i = i + 1
 
     def runRawbaseBenchmark(self):
-        if len(self.revisions) == 0:
+
+        if len(self.revisions) == 1:
             print('There are no revisions')
             return
         i = 0
-        while i < self.count:
-            with open(self.logFile, 'w+') as executionLog:
+        with open(self.logFile, 'w+') as executionLog:
+            while i < self.count:
                 ref = random.choice(self.revisions)
-                start, end = self.postRequest(ref)
+                query = """
+                    SELECT * FROM <{}> WHERE {{ ?s ?p ?o .}} LIMIT 10""".format(ref)
+                start, end = self.rawbaseQueryRequest(query)
                 data = [ref, str(end - start), str(start), str(end)]
                 executionLog.write(' '.join(data) + '\n')
                 i = i + 1

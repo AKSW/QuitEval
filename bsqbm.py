@@ -216,6 +216,7 @@ class Execution:
             self.logger.debug("Destructor called for {} and {}".format(
                 self.storeProcess.pid, self.bsbmProcess.pid))
             self.terminate()
+        time.sleep(10)
 
 
 class R43plesExecution(Execution):
@@ -608,6 +609,7 @@ class R43plesDockerExecution(R43plesExecution):
             dockerCommand += ['-e', envVariable]
         dockerCommand += ['--rm', '-t', self.image]
         self.logger.debug("Start r43ples container: {}".format(' '.join(dockerCommand)))
+        print(' '.join(dockerCommand))
         self.storeProcess = subprocess.Popen(dockerCommand)
         self.logger.debug("R43ples docker process is: {}".format(self.storeProcess.pid))
         # self.repositoryPath = self.hostTargetDir
@@ -685,9 +687,6 @@ class RawbaseDockerExecution(RawbaseExecution):
 
     def runStore(self):
         self.volumeMounts = []
-        # self.volumeMounts = [
-        #     self.hostLoadDataDir + ':' + self.containerLoadDataMount,
-        #     self.hostTbdDir + ':' + self.containerTbdMount]
 
         if self.profiling:
             self.logger.info('Profiling not implemented for docker environment, yet.')
@@ -704,6 +703,7 @@ class RawbaseDockerExecution(RawbaseExecution):
             dockerCommand += ['-e', envVariable]
         dockerCommand += ['--rm', '-t', self.image]
         self.logger.debug("Start rawbase container: {}".format(' '.join(dockerCommand)))
+        print(' '.join(dockerCommand))
         self.storeProcess = subprocess.Popen(dockerCommand)
         self.logger.debug("Rawbase docker process is: {}".format(self.storeProcess.pid))
 
