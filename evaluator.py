@@ -235,7 +235,7 @@ class RandomAccessExecuter(Evaluator):
         if len(self.commits) == 0:
             print('There are no revisions')
             return
-        i = 1
+        i = 0
         query = """
             SELECT * WHERE { graph ?g { ?s ?p ?o .}} LIMIT 10"""
 
@@ -244,6 +244,7 @@ class RandomAccessExecuter(Evaluator):
                 ref = random.choice(self.commits)
                 start, end = self.postRequest(query, ref)
                 data = [ref, str(end - start), str(start), str(end)]
+                print(', '.join(data))
                 executionLog.write(' '.join(data) + '\n')
                 i = i + 1
 
@@ -252,15 +253,16 @@ class RandomAccessExecuter(Evaluator):
             print('There are no revisions')
             return
 
-        i = 1
         choices = set([0, self.revisions, self.revisions/4, self.revisions*3/4])
 
+        i = 0
         with open(self.logFile, 'w+') as executionLog:
             while i < self.queries:
                 ref = random.choice(choices)
                 query = "SELECT ? WHERE {{ graph <urn:bsbm> REVISION \"{}\" {{ ?s ?p ?o }} }} LIMIT 1".format(ref)
                 start, end = self.postRequest(query)
                 data = [ref, str(end - start), str(start), str(end)]
+                print(', '.join(data))
                 executionLog.write(' '.join(data) + '\n')
                 i = i + 1
 
@@ -277,5 +279,6 @@ class RandomAccessExecuter(Evaluator):
                     SELECT * FROM <{}> WHERE {{ ?s ?p ?o .}} LIMIT 10""".format(ref)
                 start, end = self.rawbaseQueryRequest(query)
                 data = [ref, str(end - start), str(start), str(end)]
+                print(', '.join(data))
                 executionLog.write(' '.join(data) + '\n')
                 i = i + 1
