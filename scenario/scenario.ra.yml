@@ -10,8 +10,8 @@ bareRepo: false
 profiling: false
 executionType: "QuitDocker"
 bsbmQueryLogFile: "../bsbmtools-0.2/dataset_update.nt"
-bsbmQueryLogTriples: 40  # triples to be inserted and deleted (randomised) - Query Log Execution
-rasbmQueryExecutions: 10  # queries to be executed - Random Access Execution
+bsbmQueryLogTriples: 5  # triples to be inserted and deleted (randomised) - Query Log Execution
+rasbmQueryExecutions: 8  # queries to be executed - Random Access Execution
 bsbmLogMode: "dataset_update"
 
 scenarios:
