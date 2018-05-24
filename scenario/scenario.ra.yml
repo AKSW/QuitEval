@@ -10,20 +10,19 @@ bareRepo: false
 profiling: false
 executionType: "QuitDocker"
 bsbmQueryLogFile: "../bsbmtools-0.2/dataset_update.nt"
-bsbmQueryLogTriples: 40  # triples to be inserted and deleted (randomised)
+bsbmQueryLogTriples: 40  # triples to be inserted and deleted (randomised) - Query Log Execution
+rasbmQueryExecutions: 10  # queries to be executed - Random Access Execution
 bsbmLogMode: "dataset_update"
 
 scenarios:
     - "Rawbase": {
         evalMode: "complete",
         executionType: "RawbaseDocker",
-        basbmRuns: 10,  # queries to be executed
-        basbmRevisions: 10 # if more revisions (r43ples) than queries we want to execute
     }
     - "RA_Quit": {
         evalMode: "complete",
         executionType: "QuitDocker",
-        basbmRuns: 4
+        rasbmQueryExecutions: 4
     }
     - "QL_R43ples": {
         executionType: "R43plesDocker",

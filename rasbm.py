@@ -47,48 +47,48 @@ class RandomAccessExecution(Execution):
 
     def runQueryLog(self):
         self.logger.info("Query Log Execution")
-        self.logger.info("Platform: {}".format(self.platform))
+        self.logger.info("store: {}".format(self.store))
         ql = QueryLogExecuter(
-            endpoint=self.default_endpoints['update'][self.platform],  # endpoint
+            endpoint=self.default_endpoints['update'][self.store],  # endpoint
             logDir=os.path.abspath(self.logPath),  # log dir
             queryLog=self.bsbmQueryLogFile,  # query log file
             mode=self.bsbmLogMode,  # mode
-            store=self.platform,  # store
-            triples=self.bsbmQueryLogTriples,
+            store=self.store,  # store
+            triples=self.bsbmQueryLogTriples,  # amount of triples that will be picked
             virtuoso=self.rasbmVirtuoso)  # virtuoso
 
         self.logger.debug("Start QueryLogExecuter for {}".format(
-            self.platform))
+            self.store))
         ql.run()
 
 
     def runRandomAccess(self):
         self.logger.info("Random Access Execution")
-        self.logger.info("Platform: {}".format(self.platform))
-        if self.platform == 'quit':
+        self.logger.info("Platform: {}".format(self.store))
+        if self.store == 'quit':
             ra = RandomAccessExecuter(
-                endpoint=self.default_endpoints['query'][self.platform],  # endpoint
-                platform=self.platform,  # platform
-                count=self.rasbmRuns,  # number of queries
+                endpoint=self.default_endpoints['query'][self.store],  # endpoint
+                store=self.store,  # store
+                queries=self.rasbmQueryExecutions,  # number of queries
                 logDir=os.path.abspath(self.logPath),  # log dir
                 repo=self.repositoryPath)  # repodir
-        elif self.platform == 'r43ples':
+        elif self.store == 'r43ples':
             ra = RandomAccessExecuter(
-                endpoint=self.default_endpoints['query'][self.platform],  # endpoint
-                platform=self.platform,  # platform
-                count=self.rasbmRuns,  # number of queries
+                endpoint=self.default_endpoints['query'][self.store],  # endpoint
+                store=self.store,  # store
+                queries=self.rasbmQueryExecutions,  # number of queries
                 logDir=os.path.abspath(os.path.join(self.logPath, self.runName)))  # log dir
-        elif self.platform == 'rawbase':
+        elif self.store == 'rawbase':
             self.repodir=os.path.abspath(os.path.join(self.logPath, 'repo')),  # log dir
             ra = RandomAccessExecuter(
-                endpoint=self.default_endpoints['query'][self.platform],  # endpoint
-                platform=self.platform,  # platform
-                count=self.rasbmRuns,  # number of queries
+                endpoint=self.default_endpoints['query'][self.store],  # endpoint
+                store=self.store,  # store
+                queries=self.rasbmQueryExecutions,  # number of queries
                 virtuoso=self.rasbmVirtuoso,  # virtuoso
                 logDir=os.path.abspath(os.path.join(self.logPath)))  # log dir
 
         self.logger.debug("Start Random Access for {}".format(
-            self.platform))
+            self.store))
         ra.getRevisions()
         ra.run()
 
@@ -176,11 +176,10 @@ class RaScenarioReader(ScenarioReader):
         bsbmLogMode = docs["bsbmLogMode"] if "bsbmLogMode" in docs else None
         evalMode = docs["evalMode"] if "evalMode" in docs else "ra"
         repoDir = docs["repoDir"] if "repoDir" in docs else None
-        rasbmRuns = docs["rasbmRuns"] if "rasbmRuns" in docs else 1000
-        rasbmRevisions = docs["rasbmRevisions"] if "rasbmRevisions" in docs else 1000
+        rasbmQueryExecutions = docs["rasbmQueryExecutions"] if "rasbmQueryExecutions" in docs else 1000
         rasbmVirtuoso = docs["rasbmVirtuoso"] if "rasbmVirtuoso" in docs else 'http://localhost:8890/sparql'
         if "executionType" in docs:
-            platform = rasbmMode[docs["executionType"].lower()]
+            store = rasbmMode[docs["executionType"].lower()]
 
         repetitions = docs["repetitions"] if "repetitions" in docs else "3"
         bsbmRuns = docs["bsbmRuns"] if "bsbmRuns" in docs else "100"
@@ -251,22 +250,20 @@ class RaScenarioReader(ScenarioReader):
                         "repoDir"] if "repoDir" in runConfig else repoDir
                     execution.evalMode = runConfig[
                         "evalMode"] if "evalMode" in runConfig else evalMode
-                    execution.rasbmRuns = runConfig[
-                        "rasbmRuns"] if "rasbmRuns" in runConfig else rasbmRuns
-                    execution.rasbmRevisions = runConfig[
-                        "rasbmRevisions"] if "rasbmRevisions" in runConfig else rasbmRevisions
+                    execution.rasbmQueryExecutions = runConfig[
+                        "rasbmQueryExecutions"] if "rasbmQueryExecutions" in runConfig else rasbmQueryExecutions
                     execution.rasbmVirtuoso = runConfig[
                         "rasbmVirtuoso"] if "rasbmVirtuoso" in runConfig else rasbmVirtuoso
                     execution.executable = runConfig[
                         "executable"] if "executable" in runConfig else executable
                     if "executionType" in runConfig:
-                        execution.platform = rasbmMode[runConfig["executionType"].lower()]
+                        execution.store = rasbmMode[runConfig["executionType"].lower()]
                     else:
-                        if platform is None:
+                        if store is None:
                             logger.error('We need to know which store we use. Exiting')
                             sys.exit()
-                        execution.platform = platform
-                        logger.info('Found the platform: {}'.format(platform))
+                        execution.store = store
+                        logger.info('Found the store: {}'.format(store))
 
                     if "image" in runConfig:
                         execution.image = runConfig["image"]

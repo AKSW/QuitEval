@@ -10,11 +10,11 @@ import datetime
 class Evaluator:
     """A super class containg attributes and methods used in both subclasses."""
 
-    platform=''
+    store=''
     endpoint=''
     logFile=''
     logDir='/var/logs'
-    count=10
+    queries=10
 
     def postRequest(self, query, ref=None):
         if ref is not None:
@@ -66,8 +66,7 @@ class QueryLogExecuter(Evaluator):
             queryLog='',
             mode='bsbm-log',
             store=None,
-            triples=None,
-            runs=None):
+            triples=None):
 
         self.mode = mode
         self.endpoint = endpoint
@@ -77,7 +76,6 @@ class QueryLogExecuter(Evaluator):
         self.logFile = os.path.join(self.logDir, logFile)
         self.mode = mode
         self.store = store
-        self.runs = runs
         self.triples = triples
         self.revisionQuery = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {"
         self.revisionQuery += "graph <urn:rawbase:provenance> {?entity a prov:Entity. "
@@ -149,48 +147,48 @@ class RandomAccessExecuter(Evaluator):
 
     def __init__(
             self,
-            platform='',
+            store='',
             repo='',
             graph='urn:bsbm',
             endpoint='',
             logFile='',
             virtuoso='',
             logDir='/var/logs',
-            count=10):
+            queries=10):
 
         self.endpoint = endpoint
         self.virtuoso = virtuoso
         self.logDir = logDir
         self.graph = graph
 
-        if platform not in ['quit', 'r43ples', 'rawbase']:
-            print('No platform selected.')
+        if store not in ['quit', 'r43ples', 'rawbase']:
+            print('No store selected.')
             sys.exit()
 
         if logFile != '':
             self.logFile = os.path.join(self.logDir, logFile)
         else:
-            self.logFile = os.path.join(self.logDir, 'ra-' + platform + '.log')
+            self.logFile = os.path.join(self.logDir, 'ra-' + store + '.log')
 
-        if isinstance(count, int):
-            self.count = count
+        if isinstance(queries, int):
+            self.queries = queries
         else:
-            raise Exception('Expect integer for argument "runs", got {}, {}'.format(count, type(count)))
+            raise Exception('Expect integer for argument "queries", got {}, {}'.format(queries, type(queries)))
 
-        self.platform = platform
+        self.store = store
 
-        if platform == 'quit':
+        if store == 'quit':
             try:
                 self.repo = pygit2.Repository(repo)
             except Exception:
                 raise Exception('{} is no repository'.format(repo))
 
     def getRevisions(self):
-        if self.platform == 'quit':
+        if self.store == 'quit':
             self.getQuitRevisions()
-        elif self.platform == 'r43ples':
+        elif self.store == 'r43ples':
             self.getR43plesRevisions()
-        elif self.platform == 'rawbase':
+        elif self.store == 'rawbase':
             self.getRawbaseRevisions()
 
     def getQuitRevisions(self):
@@ -226,11 +224,11 @@ class RandomAccessExecuter(Evaluator):
                 self.revisions.append(line.strip("\""))
 
     def run(self):
-        if self.platform == 'quit':
+        if self.store == 'quit':
             self.runQuitBenchmark()
-        elif self.platform == 'r43ples':
+        elif self.store == 'r43ples':
             self.runR43plesBenchmark()
-        elif self.platform == 'rawbase':
+        elif self.store == 'rawbase':
             self.runRawbaseBenchmark()
 
     def runQuitBenchmark(self):
@@ -242,7 +240,7 @@ class RandomAccessExecuter(Evaluator):
             SELECT * WHERE { graph ?g { ?s ?p ?o .}} LIMIT 10"""
 
         with open(self.logFile, 'w+') as executionLog:
-            while i < self.count:
+            while i < self.queries:
                 ref = random.choice(self.commits)
                 start, end = self.postRequest(query, ref)
                 data = [ref, str(end - start), str(start), str(end)]
@@ -250,7 +248,7 @@ class RandomAccessExecuter(Evaluator):
                 i = i + 1
 
     def runR43plesBenchmark(self):
-        if self.revisions == 0:
+        if self.revisions <= 0:
             print('There are no revisions')
             return
 
@@ -258,7 +256,7 @@ class RandomAccessExecuter(Evaluator):
         choices = set([0, self.revisions, self.revisions/4, self.revisions*3/4])
 
         with open(self.logFile, 'w+') as executionLog:
-            while i < self.count:
+            while i < self.queries:
                 ref = random.choice(choices)
                 query = "SELECT ? WHERE {{ graph <urn:bsbm> REVISION \"{}\" {{ ?s ?p ?o }} }} LIMIT 1".format(ref)
                 start, end = self.postRequest(query)
@@ -273,7 +271,7 @@ class RandomAccessExecuter(Evaluator):
             return
         i = 0
         with open(self.logFile, 'w+') as executionLog:
-            while i < self.count:
+            while i < self.queries:
                 ref = random.choice(self.revisions)
                 query = """
                     SELECT * FROM <{}> WHERE {{ ?s ?p ?o .}} LIMIT 10""".format(ref)
