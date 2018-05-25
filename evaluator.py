@@ -126,17 +126,6 @@ class QueryLogExecuter(Evaluator):
             return parent
         return ""
 
-    # def get_size(self, start_path='database/dataset'):
-    #     total_size = 0
-    #     for dirpath, dirnames, filenames in os.walk(start_path):
-    #         total_size += os.path.getsize(dirpath)
-    #         # self.logger.debug("size {} of {}".format(os.path.getsize(dirpath), dirpath))
-    #         for f in filenames:
-    #             fp = os.path.join(dirpath, f)
-    #             total_size += os.path.getsize(fp)
-    #             # self.logger.debug("size {} of {}".format(os.path.getsize(fp), fp))
-    #     return total_size / 1024
-    #
 
 class RandomAccessExecuter(Evaluator):
     """Execute Select Queries randomly over existing reviosions."""
