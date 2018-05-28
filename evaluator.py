@@ -66,6 +66,7 @@ class QueryLogExecuter(Evaluator):
             queryLog='',
             mode='bsbm-log',
             store=None,
+            maxTriplesPerQuery=150,
             triples=None):
 
         self.mode = mode
@@ -76,6 +77,7 @@ class QueryLogExecuter(Evaluator):
         self.logFile = os.path.join(self.logDir, logFile)
         self.mode = mode
         self.store = store
+        self.maxTriplesPerQuery = maxTriplesPerQuery
         self.triples = triples
         self.revisionQuery = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {"
         self.revisionQuery += "graph <urn:rawbase:provenance> {?entity a prov:Entity. "
@@ -89,7 +91,7 @@ class QueryLogExecuter(Evaluator):
     def initQueryLog(self):
 
         from lsbm import lsbm
-        lsbm_instance = lsbm("http://example.org/", "urn:bsbm", self.store)
+        lsbm_instance = lsbm("http://example.org/", "urn:bsbm", self.store, self.maxTriplesPerQuery)
         lsbm_instance.prepare(self.triples, self.queryLog)
 
         self.queries = lsbm_instance.queryList

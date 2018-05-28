@@ -13,11 +13,11 @@ class lsbm:
         'r43ples': 'USER "radtke" MESSAGE "RASBM" {query_type} {{GRAPH <{graph}> REVISION "master" {{ {body} }}',
         'rawbase': '{query_type} {{ {body} }}'}
 
-    def __init__(self, baseUri, defaultGraph, store):
+    def __init__(self, baseUri, defaultGraph, store, maxTriplesPerQuery):
         self.baseUri = baseUri
         self.defaultGraph = defaultGraph
         self.store = store
-        self.maxTripleSize = 150
+        self.maxTriplesPerQuery = maxTriplesPerQuery
 
     def prepare(self, numberOfStatements, queryLog):
         self.toInsert = []
