@@ -17,6 +17,7 @@ class lsbm:
         self.baseUri = baseUri
         self.defaultGraph = defaultGraph
         self.store = store
+        self.maxTripleSize = 150
 
     def prepare(self, numberOfStatements, queryLog):
         self.toInsert = []
@@ -57,7 +58,11 @@ class lsbm:
         return list((item for item in orig if item not in remove))
 
     def prepareInsert(self):
-        statementSample = sample(self.toInsert, randint(1, math.ceil(len(self.toInsert)/4)))
+        if math.ceil(len(self.toInsert)/4) < self.maxTripleSize:
+            maxTripleSize = math.ceil(len(self.toInsert)/4)
+        else:
+            maxTripleSize = self.maxTripleSize
+        statementSample = sample(self.toInsert, randint(1, maxTripleSize))
         self.toInsert = self.removeListFromList(self.toInsert, statementSample)
         self.toDelete.extend(statementSample)
         #print("add {}".format(statementSample))
@@ -70,6 +75,10 @@ class lsbm:
         return query
 
     def prepareDelete(self):
+        if math.ceil(len(self.toInsert)/4) < self.maxTripleSize:
+            maxTripleSize = math.ceil(len(self.toInsert)/4)
+        else:
+            maxTripleSize = self.maxTripleSize
         statementSample = sample(self.toDelete, randint(1, math.ceil(len(self.toDelete)/4)))
         self.toDelete = self.removeListFromList(self.toDelete, statementSample)
         query = self.query_patterns[self.store].format(
