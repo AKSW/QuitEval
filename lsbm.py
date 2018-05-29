@@ -29,30 +29,24 @@ class lsbm:
                     continue
                 line = line.strip()
                 self.toInsert.append(line)
-                print(line)
         self.toDelete = []
         self.prepareQueryList()
 
     def prepareQueryList(self):
         self.queryList = []
         while True:
-            direction = randint(0,1)
+            direction = randint(0, 3)
             try:
-                if direction:
-                    print("insert")
-                    self.queryList.append(self.prepareInsert())
-                else:
-                    print("delete")
+                if direction == 0:
                     self.queryList.append(self.prepareDelete())
+                else:
+                    self.queryList.append(self.prepareInsert())
             except ValueError as e:
                 pass
-            print(len(self.toInsert), len(self.toDelete))
             if len(self.toInsert) < 1 and len(self.toDelete) < 1:
                 print("all done")
                 break
         print("done prepare query list")
-        for query in self.queryList:
-            print(query)
 
     def removeListFromList(self, orig, remove):
         return list((item for item in orig if item not in remove))
@@ -65,26 +59,23 @@ class lsbm:
         statementSample = sample(self.toInsert, randint(1, maxTripleSize))
         self.toInsert = self.removeListFromList(self.toInsert, statementSample)
         self.toDelete.extend(statementSample)
-        #print("add {}".format(statementSample))
         query = self.query_patterns[self.store].format(
             query_type='INSERT DATA', graph=self.defaultGraph,
             body=" ".join(statementSample))
 
-        print(query)
-
         return query
 
     def prepareDelete(self):
-        if math.ceil(len(self.toInsert)/4) < self.maxTriplesPerQuery:
-            maxTripleSize = math.ceil(len(self.toInsert)/4)
+        if math.ceil(len(self.toDelete)/4) < self.maxTriplesPerQuery:
+            maxTripleSize = math.ceil(len(self.toDelete)/4)
         else:
             maxTripleSize = self.maxTriplesPerQuery
-        statementSample = sample(self.toDelete, randint(1, math.ceil(len(self.toDelete)/4)))
+        statementSample = sample(self.toDelete, randint(1, maxTripleSize))
         self.toDelete = self.removeListFromList(self.toDelete, statementSample)
         query = self.query_patterns[self.store].format(
             query_type='DELETE DATA', graph=self.defaultGraph,
             body=" ".join(statementSample))
-        print(query)
+
         return query
 
     def rwbaseGetParent(self, rwbVirtuoso):
