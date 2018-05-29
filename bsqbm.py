@@ -153,6 +153,7 @@ class Execution:
     bsbmLocation = None
     bsbmWarmup = None
     bsbmRuns = None
+    bsbmUsecaseFile = "sparql.txt"
     logPath = None
     storeArguments = None
     profiling = False
@@ -220,6 +221,7 @@ class Execution:
 class R43plesExecution(Execution):
 
     repositoryPath = None
+    bsbmUsecaseFile = "r43ples.sparql.txt"
 
     def prepare(self):
 
@@ -244,7 +246,7 @@ class R43plesExecution(Execution):
             self.bsbmRuns,
             self.bsbmWarmup,
             os.path.abspath(os.path.join(self.logPath, self.runName + ".xml")),
-            os.path.join("usecases", self.usecase, "r43ples.sparql.txt"),
+            os.path.join("usecases", self.usecase, self.bsbmUsecaseFile),
             "dataset_update.nt",
             "http://localhost:8080/r43ples/sparql"
         )
@@ -284,6 +286,7 @@ class QuitExecution(Execution):
 
     repositoryPath = None
     bareRepo = None
+    bsbmUsecaseFile = "quit.sparql.txt"
 
     def prepare(self):
 
@@ -400,13 +403,13 @@ class QuitExecution(Execution):
         self.storeProcess = subprocess.Popen(quitCommand)
         self.logger.debug("Quit process is: {}".format(self.storeProcess.pid))
 
-    def runBSBM(self, usecaseFile="quit.sparql.txt"):
+    def runBSBM(self):
         arguments = "{} -runs {} -w {} -dg \"urn:bsbm\" -o {} -ucf {} -udataset {} -u {}".format(
             "http://localhost:5000/sparql",
             self.bsbmRuns,
             self.bsbmWarmup,
             os.path.abspath(os.path.join(self.logPath, self.runName + ".xml")),
-            os.path.join("usecases", self.usecase, usecaseFile),
+            os.path.join("usecases", self.usecase, self.bsbmUsecaseFile),
             "dataset_update.nt",
             "http://localhost:5000/sparql"
         )
@@ -455,8 +458,7 @@ class UwsgiExecution(QuitExecution):
 
 class QuitOldExecution(QuitExecution):
 
-    def runBSBM(self):
-        super(QuitOldExecution, self).runBSBM("quit-old.sparql.txt")
+    bsbmUsecaseFile = "quit-old.sparql.txt"
 
     def prepare_repository(self, directory):
         repo = pygit2.init_repository(directory)  # git init $directory
@@ -790,6 +792,7 @@ class ScenarioReader:
         default_executionType = docs["executionType"] if "executionType" in docs else "Quit"
         two_graphs = docs["two_graphs"] if "two_graphs" in docs else False
         usecase = docs["usecase"] if "usecase" in docs else False
+        usecaseFile = docs["usecaseFile"] if "usecaseFile" in docs else False
 
         for repetition in range(1, repetitions + 1):
             for scenario in docs["scenarios"]:
@@ -839,6 +842,10 @@ class ScenarioReader:
                         "executable"] if "executable" in runConfig else executable
                     if "image" in runConfig:
                         execution.image = runConfig["image"]
+                    usecaseFile = runConfig[
+                        "usecaseFile"] if "usecaseFile" in runConfig else usecaseFile
+                    if usecaseFile:
+                        execution.bsbmUsecaseFile = usecaseFile
                     execution.wsgimodule = runConfig[
                         "wsgimodule"] if "wsgimodule" in runConfig else wsgimodule
                     execution.pythonpath = runConfig[
