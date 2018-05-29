@@ -792,7 +792,7 @@ class ScenarioReader:
         default_executionType = docs["executionType"] if "executionType" in docs else "Quit"
         two_graphs = docs["two_graphs"] if "two_graphs" in docs else False
         usecase = docs["usecase"] if "usecase" in docs else False
-        usecaseFile = docs["usecaseFile"] if "usecaseFile" in docs else False
+        default_usecaseFile = docs["usecaseFile"] if "usecaseFile" in docs else False
 
         for repetition in range(1, repetitions + 1):
             for scenario in docs["scenarios"]:
@@ -843,7 +843,7 @@ class ScenarioReader:
                     if "image" in runConfig:
                         execution.image = runConfig["image"]
                     usecaseFile = runConfig[
-                        "usecaseFile"] if "usecaseFile" in runConfig else usecaseFile
+                        "usecaseFile"] if "usecaseFile" in runConfig else default_usecaseFile
                     if usecaseFile:
                         execution.bsbmUsecaseFile = usecaseFile
                     execution.wsgimodule = runConfig[
