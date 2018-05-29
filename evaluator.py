@@ -28,6 +28,7 @@ class Evaluator:
             data={'query': query},
             headers={'Accept': 'application/json'})
         end = datetime.datetime.now()
+        print(res.status_code, res.text[:80] + ' ...')
         return start, end
 
     def rawbaseQueryRequest(self, query):
@@ -39,6 +40,7 @@ class Evaluator:
             # params=params,
             headers={'Accept': 'application/json'})
         end = datetime.datetime.now()
+        print(res.status_code, res.text[:200] + ' ...')
         return start, end
 
     def rawbaseUpdateRequest(self, query):
@@ -47,10 +49,11 @@ class Evaluator:
         params = {"rwb-version": parent}
         res = requests.post(
             self.endpoint,
-            data=query,
             params=params,
+            data=query,
             headers={'Accept': 'application/json', "Content-Type": "application/sparql-update"})
         end = datetime.datetime.now()
+        print('RASBM Rawbase Update:', res.status_code)
         return start, end
 
 
@@ -183,13 +186,11 @@ class RandomAccessExecuter(Evaluator):
             self.getRawbaseRevisions()
 
     def getQuitRevisions(self):
-        commits = {}
         i = 0
-        for commit in self.repo.walk(self.repo.head.target, pygit2.GIT_SORT_REVERSE):
-            commits[i] = (str(commit.id))
+        for commit in self.repo.walk(self.repo.head.target, pygit2.GIT_SORT_TIME):
+            self.commits.append((i, str(commit.id)))
             i += 1
-        self.commits = commits
-        print('Found {} commits'.format(len(commits.items())))
+        print('Found {} git commits'.format(len(self.commits)))
 
     def getR43plesRevisions(self):
         query = """select ?rev where {{
@@ -202,17 +203,22 @@ class RandomAccessExecuter(Evaluator):
 
         data = response.json()
         self.revisions = len(data['results']['bindings']) - 1
+        print('Found {} R43ples-revisions'.format(self.revisions))
 
     def getRawbaseRevisions(self):
-        query = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {graph <urn:rawbase:provenance> {?entity a prov:Entity. ?activity prov:generated ?entity ; prov:atTime ?time}} order by desc(?time)"
+        query = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {graph <urn:rawbase:provenance> {?entity a prov:Entity. ?activity prov:generated ?entity ; prov:atTime ?time}} order by ?time"
 
         response = requests.post(self.virtuoso, data={'query': query},
                                  headers={'Accept': 'text/csv'})
 
         if len(response.text.split("\n")) > 0:
             revisions = response.text.split("\n")
+            i = 0
             for line in revisions[1:]:
-                self.revisions.append(line.strip("\""))
+                self.revisions.append((i, line.strip("\"")))
+                i += 1
+
+        print('Found {} rawbase revisions'.format(len(self.revisions)))
 
     def run(self):
         if self.store == 'quit':
@@ -232,9 +238,9 @@ class RandomAccessExecuter(Evaluator):
 
         with open(self.logFile, 'w+') as executionLog:
             while i < self.queries:
-                ref = random.choice(self.commits)
+                number, ref = random.choice(self.commits)
                 start, end = self.postRequest(query, ref)
-                data = [ref, str(end - start), str(start), str(end)]
+                data = [str(number), ref, str(end - start), str(start), str(end)]
                 print(', '.join(data))
                 executionLog.write(' '.join(data) + '\n')
                 i = i + 1
@@ -248,7 +254,7 @@ class RandomAccessExecuter(Evaluator):
         with open(self.logFile, 'w+') as executionLog:
             while i < self.queries:
                 ref = random.choice(range(0, self.revisions))
-                query = "SELECT * WHERE {{ graph <urn:bsbm> REVISION \"{}\" {{ ?s ?p ?o }} }} LIMIT 1000".format(ref)
+                query = "SELECT ?s ?p ?o WHERE {{ graph <urn:bsbm> REVISION \"{}\" {{ ?s ?p ?o }} }} LIMIT 10".format(ref)
                 start, end = self.postRequest(query)
                 data = [str(ref), str(end - start), str(start), str(end)]
                 print(', '.join(data))
@@ -263,11 +269,11 @@ class RandomAccessExecuter(Evaluator):
         i = 0
         with open(self.logFile, 'w+') as executionLog:
             while i < self.queries:
-                ref = random.choice(self.revisions)
+                number, ref = random.choice(self.revisions)
                 query = """
                     SELECT * FROM <{}> WHERE {{ ?s ?p ?o .}} LIMIT 1000""".format(ref)
                 start, end = self.rawbaseQueryRequest(query)
-                data = [ref, str(end - start), str(start), str(end)]
+                data = [str(number), ref, str(end - start), str(start), str(end)]
                 print(', '.join(data))
                 executionLog.write(' '.join(data) + '\n')
                 i = i + 1
