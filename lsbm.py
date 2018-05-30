@@ -10,7 +10,7 @@ class lsbm:
 
     query_patterns = {
         'quit': '{query_type} {{GRAPH <{graph}> {{ {body} }} }}',
-        'r43ples': 'USER "radtke" MESSAGE "RASBM" {query_type} {{GRAPH <{graph}> REVISION "master" {{ {body} }} }}',
+        'r43ples': 'USER "radtke" MESSAGE "RASBM" {query_type} {{GRAPH <{graph}> BRANCH "master" {{ {body} }} }}',
         'rawbase': '{query_type} {{ {body} }}'}
 
     def __init__(self, baseUri, defaultGraph, store, maxTriplesPerQuery):

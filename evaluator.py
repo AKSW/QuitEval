@@ -195,7 +195,7 @@ class RandomAccessExecuter(Evaluator):
     def getR43plesRevisions(self):
         query = """select ?rev where {{
             graph <{}-revisiongraph> {{
-                ?s <http://eatld.et.tu-dresden.de/rmo#revisionNumber> ?rev .}} }} ORDER BY ?rev""".format(
+                ?s <http://eatld.et.tu-dresden.de/rmo#revisionIdentifier> ?rev .}} }} ORDER BY ?rev""".format(
             self.graph)
 
         response = requests.post(self.endpoint, data={'query': query},
@@ -254,7 +254,7 @@ class RandomAccessExecuter(Evaluator):
         with open(self.logFile, 'w+') as executionLog:
             while i < self.queries:
                 ref = random.choice(range(0, self.revisions))
-                query = "SELECT ?s ?p ?o WHERE {{ graph <urn:bsbm> REVISION \"{}\" {{ ?s ?p ?o }} }} LIMIT 10".format(ref)
+                query = 'SELECT ?s ?p ?o WHERE {{ graph <urn:bsbm> REVISION "{}" {{?s ?p ?o }}}} LIMIT 1000'.format(ref)
                 start, end = self.postRequest(query)
                 data = [str(ref), str(end - start), str(start), str(end)]
                 print(', '.join(data))
