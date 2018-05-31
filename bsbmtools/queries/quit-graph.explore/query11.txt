@@ -1,0 +1,8 @@
+SELECT ?property ?hasValue ?isValueOf
+WHERE {
+	GRAPH <urn:bsbm> {
+      { %OfferXYZ% ?property ?hasValue }
+      UNION
+      { ?isValueOf ?property %OfferXYZ% }
+    }
+}

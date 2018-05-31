@@ -1,0 +1,2 @@
+querymix=queries/quit.update
+querymix=queries/quit-graph.explore
