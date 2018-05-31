@@ -71,6 +71,7 @@ class QueryLogExecuter(Evaluator):
             logFile='execution.log',
             logDir='/var/logs',
             queryLog='',
+            queryLogSeed='default',
             mode='bsbm-log',
             store=None,
             maxTriplesPerQuery=150,
@@ -80,6 +81,7 @@ class QueryLogExecuter(Evaluator):
         self.endpoint = endpoint
         self.virtuoso = virtuoso
         self.queryLog = queryLog
+        self.queryLogSeed = queryLogSeed
         self.logDir = logDir
         self.logFile = os.path.join(self.logDir, logFile)
         self.mode = mode
@@ -99,7 +101,7 @@ class QueryLogExecuter(Evaluator):
 
         from lsbm import lsbm
         lsbm_instance = lsbm("http://example.org/", "urn:bsbm", self.store, self.maxTriplesPerQuery)
-        lsbm_instance.prepare(self.triples, self.queryLog)
+        lsbm_instance.prepare(self.triples, self.queryLog, self.queryLogSeed)
 
         self.queries = lsbm_instance.queryList
 

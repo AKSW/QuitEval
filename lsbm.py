@@ -19,7 +19,8 @@ class lsbm:
         self.store = store
         self.maxTriplesPerQuery = maxTriplesPerQuery
 
-    def prepare(self, numberOfStatements, queryLog):
+    def prepare(self, numberOfStatements, queryLog, randSeed='default'):
+        seed(randSeed)
         self.toInsert = []
         with open(queryLog, 'r') as f:
             for line in f:
@@ -141,6 +142,11 @@ if __name__ == '__main__':
         default=None,
         help='The default graphs URI for the test (default None)')
     parser.add_argument(
+        '-q',
+        '--queryLog',
+        type=str,
+        help='The path to the query log file.')
+    parser.add_argument(
         '-n',
         '--numberOfStatements',
         type=int,
@@ -150,10 +156,9 @@ if __name__ == '__main__':
     print('Args', args)
 
     # https://stackoverflow.com/questions/11526975/set-random-seed-programwide-in-python#11527011
-    seed(args.seed)
 
     lsbm = lsbm(args.baseUri, args.defaultGraph)
     #lsbm.rwbaseGetParent()
 
-    lsbm.prepare(args.numberOfStatements, queryLog)
+    lsbm.prepare(args.numberOfStatements, args.queryLog, args.seed)
     lsbm.run(args.endpoint, args.endpointType, args.rwb_virtuoso)

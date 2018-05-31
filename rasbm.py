@@ -52,6 +52,7 @@ class RandomAccessExecution(Execution):
             endpoint=self.default_endpoints['update'][self.store],  # endpoint
             logDir=os.path.abspath(self.logPath),  # log dir
             queryLog=self.bsbmQueryLogFile,  # query log file
+            queryLogSeed=self.bsbmQueryLogSeed,  # query log seed
             mode=self.bsbmLogMode,  # mode
             store=self.store,  # store
             triples=self.bsbmQueryLogTriples,  # amount of triples that will be picked
@@ -174,6 +175,7 @@ class RaScenarioReader(ScenarioReader):
         # New features of rasbm
         bsbmQueryLogFile = docs["bsbmQueryLogFile"] if "bsbmQueryLogFile" in docs else None
         bsbmQueryLogTriples = docs["bsbmQueryLogTriples"] if "bsbmQueryLogTriples" in docs else 40
+        bsbmQueryLogSeed = docs["bsbmQueryLogSeed"] if "bsbmQueryLogSeed" in docs else 'default'
         bsbmLogMode = docs["bsbmLogMode"] if "bsbmLogMode" in docs else None
         evalMode = docs["evalMode"] if "evalMode" in docs else "ra"
         repoDir = docs["repoDir"] if "repoDir" in docs else None
@@ -246,6 +248,8 @@ class RaScenarioReader(ScenarioReader):
                         "bsbmQueryLogTriples"] if "bsbmQueryLogTriples" in runConfig else bsbmQueryLogTriples
                     execution.bsbmQueryLogFile = runConfig[
                         "bsbmQueryLogFile"] if "bsbmQueryLogFile" in runConfig else bsbmQueryLogFile
+                    execution.bsbmQueryLogSeed = runConfig[
+                        "bsbmQueryLogSeed"] if "bsbmQueryLogSeed" in runConfig else bsbmQueryLogSeed
                     execution.bsbmLogMode = runConfig[
                         "bsbmLogMode"] if "bsbmLogMode" in runConfig else bsbmLogMode
                     execution.repoDir = runConfig[
