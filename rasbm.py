@@ -28,7 +28,7 @@ class RandomAccessExecution(Execution):
     """Execute Random Access Queries or a BSBM Query Log on supported Backends."""
 
     logger = logging.getLogger('quit-eval.rasbm.ra-execution')
-    default_endpoints = {'query': {'quit': 'http://localhost:5000/sparql',
+    default_endpoints = {'query': {'quit': 'http://localhost:5000/sparql/{revision}',
                                    'r43ples': 'http://localhost:8080/r43ples/sparql',
                                    'rawbase': 'http://localhost:8080/rawbase/sparql'},
                          'update': {'quit': 'http://localhost:5000/sparql',
@@ -74,12 +74,14 @@ class RandomAccessExecution(Execution):
                 queries=self.rasbmQueryExecutions,  # number of queries
                 logDir=os.path.abspath(self.logPath),  # log dir
                 repo=self.repositoryPath)  # repodir
+            requestMethod = ra.postRequest
         elif self.store == 'r43ples':
             ra = RandomAccessExecuter(
                 endpoint=self.default_endpoints['query'][self.store],  # endpoint
                 store=self.store,  # store
                 queries=self.rasbmQueryExecutions,  # number of queries
                 logDir=os.path.abspath(self.logPath))  # log dir
+            requestMethod = ra.postRequest
         elif self.store == 'rawbase':
             self.repodir=os.path.abspath(os.path.join(self.logPath, 'repo')),  # log dir
             ra = RandomAccessExecuter(
@@ -88,11 +90,12 @@ class RandomAccessExecution(Execution):
                 queries=self.rasbmQueryExecutions,  # number of queries
                 virtuoso=self.rasbmVirtuoso,  # virtuoso
                 logDir=os.path.abspath(self.logPath))  # log dir
+            requestMethod = ra.rawBaseQueryRequest
 
         self.logger.debug("Start Random Access for {}".format(
             self.store))
         ra.getRevisions()
-        ra.run()
+        ra.run(requestMethod)
 
 
     def __del__(self):

@@ -10,6 +10,7 @@ import datetime
 class Evaluator:
     """A super class containg attributes and methods used in both subclasses."""
 
+    graph='urn:bsbm'
     store=''
     endpoint=''
     logFile=''
@@ -17,14 +18,9 @@ class Evaluator:
     queries=10
 
     def postRequest(self, query, ref=None):
-        if ref is not None:
-            endpoint = self.endpoint + '/' + ref
-        else:
-            endpoint = self.endpoint
-
         start = datetime.datetime.now()
         res = requests.post(
-            endpoint,
+            self.endpoint.format(revision=ref),
             data={'query': query},
             headers={'Accept': 'application/json'})
         end = datetime.datetime.now()
@@ -39,7 +35,7 @@ class Evaluator:
         end = datetime.datetime.now()
         return start, end, res.status_code
 
-    def rawbaseQueryRequest(self, query):
+    def rawbaseQueryRequest(self, query, ref=None):
         start = datetime.datetime.now()
         res = requests.post(
             self.endpoint,
@@ -185,99 +181,56 @@ class RandomAccessExecuter(Evaluator):
 
     def getRevisions(self):
         if self.store == 'quit':
-            self.getQuitRevisions()
-        elif self.store == 'r43ples':
-            self.getR43plesRevisions()
-        elif self.store == 'rawbase':
-            self.getRawbaseRevisions()
-
-    def getQuitRevisions(self):
-        i = 0
-        for commit in self.repo.walk(self.repo.head.target, pygit2.GIT_SORT_TIME):
-            self.commits.append((i, str(commit.id)))
-            i += 1
-        print('Found {} git commits'.format(len(self.commits)))
-
-    def getR43plesRevisions(self):
-        query = """select ?rev where {{
-            graph <{}-revisiongraph> {{
-                ?s <http://eatld.et.tu-dresden.de/rmo#revisionIdentifier> ?rev .}} }} ORDER BY ?rev""".format(
-            self.graph)
-
-        response = requests.post(self.endpoint, data={'query': query},
-                                 headers={'Accept': 'application/json'})
-
-        data = response.json()
-        self.revisions = len(data['results']['bindings']) - 1
-        print('Found {} R43ples-revisions'.format(self.revisions))
-
-    def getRawbaseRevisions(self):
-        query = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {graph <urn:rawbase:provenance> {?entity a prov:Entity. ?activity prov:generated ?entity ; prov:atTime ?time}} order by ?time"
-
-        response = requests.post(self.virtuoso, data={'query': query},
-                                 headers={'Accept': 'text/csv'})
-
-        if len(response.text.split("\n")) > 0:
-            revisions = response.text.split("\n")
             i = 0
-            for line in revisions[1:]:
-                self.revisions.append((i, line.strip("\"")))
+            for commit in self.repo.walk(self.repo.head.target, pygit2.GIT_SORT_TIME):
+                self.revisions.append((i, str(commit.id)))
                 i += 1
-
-        print('Found {} rawbase revisions'.format(len(self.revisions)))
-
-    def run(self):
-        if self.store == 'quit':
-            self.runQuitBenchmark()
+            print('Found {} git commits'.format(len(self.revisions)))
         elif self.store == 'r43ples':
-            self.runR43plesBenchmark()
+            query = """select ?rev where {{
+                graph <{}-revisiongraph> {{
+                    ?s <http://eatld.et.tu-dresden.de/rmo#revisionIdentifier> ?rev .}} }} ORDER BY ?rev""".format(
+                self.graph)
+
+            response = requests.post(self.endpoint, data={'query': query},
+                                     headers={'Accept': 'application/json'})
+
+            data = response.json()
+            self.revisions = list((r, r) for r in range(0, len(data['results']['bindings']) - 1))
+            print('Found {} R43ples-revisions'.format(len(self.revisions)))
         elif self.store == 'rawbase':
-            self.runRawbaseBenchmark()
+            query = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {graph <urn:rawbase:provenance> {?entity a prov:Entity. ?activity prov:generated ?entity ; prov:atTime ?time}} order by ?time"
 
-    def runQuitBenchmark(self):
-        if len(self.commits) == 0:
+            response = requests.post(self.virtuoso, data={'query': query},
+                                     headers={'Accept': 'text/csv'})
+
+            if len(response.text.split("\n")) > 0:
+                revisions = response.text.split("\n")
+                i = 0
+                for line in revisions[1:]:
+                    self.revisions.append((i, line.strip("\"")))
+                    i += 1
+                print('Found {} rawbase revisions'.format(len(self.revisions)))
+
+    def run(self, requestMethod):
+        if len(self.revisions) == 0:
             print('There are no revisions')
             return
-        i = 0
-        query = 'SELECT * WHERE { graph ?g { ?s ?p ?o .}} LIMIT 1000'
+        elif len(self.revisions) < self.queries:
+            print('There are not enough revisions')
+            return
 
+        selectedRevisions = random.sample(self.revisions, self.queries)
+
+        limit = 1000
+        query = {'quit': 'SELECT ?s ?p ?o WHERE {{GRAPH <{graph}> {{?s ?p ?o}}}} LIMIT {limit}',
+                 'r43ples': 'SELECT ?s ?p ?o WHERE {{GRAPH <{graph}> REVISION "{revision}" {{?s ?p ?o}}}} LIMIT {limit}',
+                 'rawbase': 'SELECT ?s ?p ?o FROM <{revision}> WHERE {{?s ?p ?o}} LIMIT {limit}'}
+
+        # quit
         with open(self.logFile, 'w+') as executionLog:
-            while i < self.queries:
-                number, ref = random.choice(self.commits)
-                start, end, status = self.postRequest(query, ref)
+            for number, ref in selectedRevisions:
+                start, end, status = requestMethod(query[self.store].format(limit=limit, revision=str(ref), graph=self.graph), ref)
                 data = [str(number), ref, str(end - start), str(start), str(end), str(status)]
                 print(', '.join(data))
                 executionLog.write(' '.join(data) + '\n')
-                i = i + 1
-
-    def runR43plesBenchmark(self):
-        if self.revisions <= 0:
-            print('There are no revisions')
-            return
-
-        i = 0
-        with open(self.logFile, 'w+') as executionLog:
-            while i < self.queries:
-                ref = random.choice(range(0, self.revisions))
-                query = 'SELECT ?s ?p ?o WHERE {{ graph <urn:bsbm> REVISION "{}" {{?s ?p ?o }}}} LIMIT 1000'.format(ref)
-                start, end, status = self.postRequest(query)
-                data = [str(ref), str(end - start), str(start), str(end), str(status)]
-                print(', '.join(data))
-                executionLog.write(' '.join(data) + '\n')
-                i = i + 1
-
-    def runRawbaseBenchmark(self):
-
-        if len(self.revisions) == 1:
-            print('There are no revisions')
-            return
-        i = 0
-        with open(self.logFile, 'w+') as executionLog:
-            while i < self.queries:
-                number, ref = random.choice(self.revisions)
-                query = 'SELECT * FROM <{}> WHERE {{ ?s ?p ?o .}} LIMIT 1000'.format(ref)
-                start, end, status = self.rawbaseQueryRequest(query)
-                data = [str(number), ref, str(end - start), str(start), str(end), str(status)]
-                print(', '.join(data))
-                executionLog.write(' '.join(data) + '\n')
-                i = i + 1
