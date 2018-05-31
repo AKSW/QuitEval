@@ -182,6 +182,7 @@ class RandomAccessExecuter(Evaluator):
     def getRevisions(self):
         if self.store == 'quit':
             i = 0
+            self.revisions = []
             for commit in self.repo.walk(self.repo.head.target, pygit2.GIT_SORT_TIME):
                 self.revisions.append((i, str(commit.id)))
                 i += 1
