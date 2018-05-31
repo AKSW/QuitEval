@@ -12,8 +12,7 @@ import psutil
 import threading
 import pygit2
 import logging
-from urllib import parse
-from urllib import request
+import requests
 
 logger = logging.getLogger('quit-eval')
 logger.setLevel(logging.DEBUG)
@@ -599,8 +598,6 @@ class R43plesDockerExecution(R43plesExecution):
         time.sleep(sleep)
         self.postPrepare('urn:bsbm')
         time.sleep(2)
-        self.postPrepare('urn:bsbm2')
-        time.sleep(2)
         self.monitor = MonitorThread()
         self.monitor.setstoreProcessAndDirectory(
             self.storeProcess, self.hostTbdDir, self.logPath)
@@ -640,8 +637,10 @@ class R43plesDockerExecution(R43plesExecution):
         # self.repositoryPath = self.hostTargetDir
 
     def postPrepare(self, graphuri):
-        arguments = parse.urlencode({'query': 'CREATE GRAPH <' + graphuri + '>'})
-        conn = request.urlopen('http://localhost:8080/r43ples/sparql', (arguments.encode('utf-8')))
+        res = requests.post(
+            'http://localhost:8080/r43ples/sparql',
+            data={'query': 'CREATE GRAPH <' + graphuri + '>'},
+            headers={'Accept': 'application/json'})
 
     def pause(self):
         programPause = input("Press the <ENTER> key to continue...")
