@@ -83,14 +83,14 @@ class RandomAccessExecution(Execution):
                 logDir=os.path.abspath(self.logPath))  # log dir
             requestMethod = ra.postRequest
         elif self.store == 'rawbase':
-            self.repodir=os.path.abspath(os.path.join(self.logPath, 'repo')),  # log dir
+            self.repodir = os.path.abspath(os.path.join(self.logPath, 'repo')),  # log dir
             ra = RandomAccessExecuter(
                 endpoint=self.default_endpoints['query'][self.store],  # endpoint
                 store=self.store,  # store
                 queries=self.rasbmQueryExecutions,  # number of queries
                 virtuoso=self.rasbmVirtuoso,  # virtuoso
                 logDir=os.path.abspath(self.logPath))  # log dir
-            requestMethod = ra.rawBaseQueryRequest
+            requestMethod = ra.rawbaseQueryRequest
 
         self.logger.debug("Start Random Access for {}".format(
             self.store))
