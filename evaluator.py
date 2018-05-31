@@ -10,12 +10,12 @@ import datetime
 class Evaluator:
     """A super class containg attributes and methods used in both subclasses."""
 
-    graph='urn:bsbm'
-    store=''
-    endpoint=''
-    logFile=''
-    logDir='/var/logs'
-    queries=10
+    graph = 'urn:bsbm'
+    store = ''
+    endpoint = ''
+    logFile = ''
+    logDir = '/var/logs'
+    queries = 10
 
     def postRequest(self, query, ref=None):
         start = datetime.datetime.now()
@@ -187,6 +187,8 @@ class RandomAccessExecuter(Evaluator):
                 self.revisions.append((i, str(commit.id)))
                 i += 1
             print('Found {} git commits'.format(len(self.revisions)))
+            with open(os.path.join(self.logDir, 'revisions.log'), 'a+') as revisionsLog:
+                revisionsLog.write("{store}: {revisions}".format("quit", str(len(self.revisions))))
         elif self.store == 'r43ples':
             query = """select ?rev where {{
                 graph <{}-revisiongraph> {{
@@ -199,6 +201,9 @@ class RandomAccessExecuter(Evaluator):
             data = response.json()
             self.revisions = list((r, r) for r in range(0, len(data['results']['bindings']) - 1))
             print('Found {} R43ples-revisions'.format(len(self.revisions)))
+            with open(os.path.join(self.logDir, 'revisions.log'), 'a+') as revisionsLog:
+                revisionsLog.write("{store}: {revisions}".format("r43ples", str(len(self.revisions))))
+
         elif self.store == 'rawbase':
             query = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {graph <urn:rawbase:provenance> {?entity a prov:Entity. ?activity prov:generated ?entity ; prov:atTime ?time}} order by ?time"
 
@@ -212,6 +217,8 @@ class RandomAccessExecuter(Evaluator):
                     self.revisions.append((i, line.strip("\"")))
                     i += 1
                 print('Found {} rawbase revisions'.format(len(self.revisions)))
+                with open(os.path.join(self.logDir, 'revisions.log'), 'a+') as revisionsLog:
+                    revisionsLog.write("{store}: {revisions}".format("rawbase", str(len(self.revisions))))
 
     def run(self, requestMethod):
         if len(self.revisions) == 0:
