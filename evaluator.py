@@ -232,6 +232,6 @@ class RandomAccessExecuter(Evaluator):
         with open(self.logFile, 'w+') as executionLog:
             for number, ref in selectedRevisions:
                 start, end, status = requestMethod(query[self.store].format(limit=limit, revision=str(ref), graph=self.graph), ref)
-                data = [str(number), ref, str(end - start), str(start), str(end), str(status)]
+                data = [str(number), str(ref), str(end - start), str(start), str(end), str(status)]
                 print(', '.join(data))
                 executionLog.write(' '.join(data) + '\n')
