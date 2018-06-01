@@ -143,7 +143,6 @@ class Execution:
     running = False
 
     usecase = 'exploreAndUpdate'
-    two_graphs = False
     runName = None
     executable = None
     wsgimodule = None
@@ -163,12 +162,6 @@ class Execution:
             with open(os.path.join(directory, "data.nq"), 'w') as targetGraph:
                 for line in sorted(list(sourceGraph)):
                     targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm> .\n")
-
-        if self.two_graphs:
-            with open(os.path.join(self.bsbmLocation, "dataset.nt"), 'r') as sourceGraph:
-                with open(os.path.join(directory, "graph2.nq"), 'w') as targetGraph:
-                    for line in sorted(list(sourceGraph)):
-                        targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm2> .\n")
 
     def terminate(self):
         self.logger.debug("Terminate has been called on execution")
@@ -329,20 +322,6 @@ class QuitExecution(Execution):
         index.read()
         index.add("graph.nq")
         index.add("graph.nq.graph")
-
-        if self.two_graphs:
-            with open(os.path.join(self.bsbmLocation, "dataset.nt"), 'r') as sourceGraph:
-                with open(os.path.join(directory, "graph2.nq"), 'w') as targetGraph:
-                    for line in sorted(list(sourceGraph)):
-                        targetGraph.write(line.rstrip()[:-1] + "<urn:bsbm2> .\n")
-            with open(os.path.join(directory, "graph2.nq.graph"), 'w') as targetGraphDotGraph:
-                targetGraphDotGraph.write("urn:bsbm2\n")
-
-            index.add("graph2.nq")
-            index.add("graph2.nq.graph")
-
-            configttl = os.path.join(os.path.dirname(
-                os.path.abspath(__file__)), "stuff", "config.two_graphs.ttl")
 
         shutil.copy(configttl, os.path.join(self.repositoryPath, "config.ttl"))
 
@@ -822,7 +801,6 @@ class ScenarioReader:
         profiling = docs["profiling"] if "profiling" in docs else False
         docker = docs["docker"] if "docker" in docs else False
         default_executionType = docs["executionType"] if "executionType" in docs else "Quit"
-        two_graphs = docs["two_graphs"] if "two_graphs" in docs else False
         usecase = docs["usecase"] if "usecase" in docs else False
         default_usecaseFile = docs["usecaseFile"] if "usecaseFile" in docs else False
 
@@ -843,7 +821,6 @@ class ScenarioReader:
                         self.logger.info("Please, don't use 'docker' keyword!")
                         executionType = self.dockerToExecution[scenario_docker]
 
-                    tg = runConfig["two_graphs"] if ("two_graphs") in runConfig else False
                     uc = runConfig["usecase"] if ("usecase") in runConfig else False
 
                     execution = getattr(sys.modules[__name__], executionType + "Execution")()
@@ -864,11 +841,6 @@ class ScenarioReader:
                         execution.usecase = uc
                     elif usecase:
                         execution.usecase = usecase
-
-                    if tg:
-                        execution.two_graphs = uc
-                    elif two_graphs:
-                        execution.two_graphs = two_graphs
 
                     execution.executable = runConfig[
                         "executable"] if "executable" in runConfig else executable
