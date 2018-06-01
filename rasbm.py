@@ -100,15 +100,18 @@ class RandomAccessExecution(Execution):
 
         self.logger.debug("Start Random Access for {}".format(
             self.store))
-        try:
-            ra.getRevisions()
-        except Exception as e:
-            print(e)
-            print("try to sleep and hope verything is fine tomorrow")
-            time.sleep(20)
-            ra.getRevisions()
+        retryCounter = 0
+        while True:
+            try:
+                ra.getRevisions()
+            except Exception as e:
+                print(e)
+                if retryCounter > 10:
+                    raise e
+                print("try to sleep and hope verything is fine tomorrow")
+                time.sleep(2**retryCounter)
+                retryCounter += 1
         ra.run(requestMethod)
-
 
     def __del__(self):
         if self.running:
