@@ -763,9 +763,9 @@ class RawbaseDockerExecution(RawbaseExecution):
 
     def __del__(self):
         if self.running:
-            self.terminate()
             self.logger.debug("Destructor called for {} and {}".format(
                 self.storeProcess.pid, self.bsbmProcess.pid))
+            self.terminate()
 
 
 class ScenarioReader:
