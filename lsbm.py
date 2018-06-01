@@ -39,9 +39,9 @@ class lsbm:
             direction = randint(0, 3)
             try:
                 if direction == 0:
-                    self.queryList.append(self.prepareDelete())
+                    self.queryList.append(("insert", self.prepareDelete()))
                 else:
-                    self.queryList.append(self.prepareInsert())
+                    self.queryList.append(("delete", self.prepareInsert()))
             except ValueError as e:
                 pass
             if len(self.toInsert) < 1 and len(self.toDelete) < 1:

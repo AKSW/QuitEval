@@ -103,9 +103,18 @@ class QueryLogExecuter(Evaluator):
 
     def run(self, requestMethod):
         with open(self.logFile, 'a+') as executionLog:
-            for query in self.queries:
+            number = 0
+            for query_type, query in self.queries:
+                number += 1
                 start, end, status = requestMethod(query)
-                data = [str(end.timestamp()-start.timestamp()), str(start), str(end), str(status)]
+                execTime = str(end.timestamp()-start.timestamp())
+                execTimeInsert = "NaN"
+                execTimeDelete = "NaN"
+                if query_type == "insert":
+                    execTimeInsert = execTime
+                if query_type == "delete":
+                    execTimeDelete = execTime
+                data = [number, execTimeInsert, execTimeDelete, str(start), str(end), str(status)]
                 executionLog.write(' '.join(data) + '\n')
 
     def rwbaseGetParent(self):
