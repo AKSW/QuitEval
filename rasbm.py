@@ -104,6 +104,7 @@ class RandomAccessExecution(Execution):
         while True:
             try:
                 ra.getRevisions()
+                break
             except Exception as e:
                 print(e)
                 if retryCounter > 10:
