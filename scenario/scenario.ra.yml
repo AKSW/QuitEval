@@ -3,36 +3,30 @@ executable: "quit"
 repetitions: 1
 bsbmRuns: 1
 bsbmWarmup: 0
-resultDirectory: "2017-07-27_2/"
+resultDirectory: "RASBM"
 repositoryBasePath: "repo"
 logBasePath: "logs"
 bareRepo: false
 profiling: false
 executionType: "QuitDocker"
 bsbmQueryLogFile: "../bsbmtools-0.2/dataset_update.nt"
+bsbmQueryLogSeed: "norman"
+bsbmQueryLogTriples: 1000  # triples to be inserted and deleted (randomised) - Query Log Execution
+rasbmMaxTriplesPerQuery: 100  # max number of triples an insert or a delete query will contain
+rasbmQueryExecutions: 10  # queries to be executed - Random Access Execution
 bsbmLogMode: "dataset_update"
 
 scenarios:
     - "Rawbase": {
         evalMode: "complete",
-        executionType: "RawbaseDocker",
-        basbmRuns: 10,  # queries to be executed
-        basbmRevisions: 10 # if more revisions (r43ples) than queries we want to execute
+        executionType: "RawbaseDocker"
     }
-    - "RA_Quit": {
-        evalMode: "ra",
-        repoDir: "/tmp/repo",
-        basbmRuns: 4
+    - "Quit": {
+        evalMode: "complete",
+        executionType: "QuitDocker",
     }
-    - "QL_R43ples": {
+    - "R43ples": {
         executionType: "R43plesDocker",
-        evalMode: "ql",
-        bsbmLogMode: "dataset_update",
-        queryLog: "../bsbmtools-0.2/dataset_update.nt",
-    }
-    - "RA_R43ples": {
-        executionType: "R43plesDocker",
-        evalMode: "ql",
-        basbmRuns: 4,
-        basbmRevisions: 101
+        evalMode: "complete",
+        image: "r43ples.local"
     }
