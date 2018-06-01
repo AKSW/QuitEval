@@ -359,7 +359,7 @@ class QuitExecution(Execution):
         # git tag init-graph
         # repo.create_tag("init-graph", str(oid)[:5], pygit2.GIT_OBJ_BLOB, author, "init-graph\n")
 
-    def run(self, block=False, sleep=5):
+    def run(self, block=False, sleep=20):
 
         self.logger.debug("start scenario {}".format(self.runName))
 
