@@ -1,5 +1,6 @@
 #! /usr/bin/env python3
 
+import time
 import logging
 import sys
 import os
@@ -99,7 +100,13 @@ class RandomAccessExecution(Execution):
 
         self.logger.debug("Start Random Access for {}".format(
             self.store))
-        ra.getRevisions()
+        try:
+            ra.getRevisions()
+        except Exception as e:
+            print(e)
+            print("try to sleep and hope verything is fine tomorrow")
+            time.sleep(20)
+            ra.getRevisions()
         ra.run(requestMethod)
 
 
