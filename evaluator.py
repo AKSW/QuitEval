@@ -178,7 +178,7 @@ class RandomAccessExecuter(Evaluator):
         elif self.store == 'r43ples':
             query = """select ?rev where {{
                 graph <{}-revisiongraph> {{
-                    ?s <http://eatld.et.tu-dresden.de/rmo#revisionIdentifier> ?rev .}} }} ORDER BY ?rev""".format(
+                    ?s <http://eatld.et.tu-dresden.de/rmo#revisionNumber> ?rev .}} }} ORDER BY ?rev""".format(
                 self.graph)
 
             response = requests.post(self.endpoint, data={'query': query},
