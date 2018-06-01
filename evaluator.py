@@ -111,9 +111,9 @@ class QueryLogExecuter(Evaluator):
                 execTimeInsert = "NaN"
                 execTimeDelete = "NaN"
                 if query_type == "insert":
-                    execTimeInsert = execTime
+                    execTimeInsert = str(execTime)
                 if query_type == "delete":
-                    execTimeDelete = execTime
+                    execTimeDelete = str(execTime)
                 data = [number, execTimeInsert, execTimeDelete, str(start), str(end), str(status)]
                 executionLog.write(' '.join(data) + '\n')
 
