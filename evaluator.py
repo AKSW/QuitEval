@@ -101,25 +101,11 @@ class QueryLogExecuter(Evaluator):
 
         self.queries = lsbm_instance.queryList
 
-    def run(self):
-        if self.store == 'rawbase':
-            self.runRawbase()
-        else:
-            self.runRest()
-        return len(self.queries)
-
-    def runRest(self):
+    def run(self, requestMethod):
         with open(self.logFile, 'a+') as executionLog:
             for query in self.queries:
-                start, end, status = self.postRequest(query)
-                data = [str(end - start), str(start), str(end), str(status)]
-                executionLog.write(' '.join(data) + '\n')
-
-    def runRawbase(self):
-        with open(self.logFile, 'a+') as executionLog:
-            for query in self.queries:
-                start, end, status = self.rawbaseUpdateRequest(query)
-                data = [str(end - start), str(start), str(end), str(status)]
+                start, end, status = requestMethod(query)
+                data = [str(end.timestamp()-start.timestamp()), str(start), str(end), str(status)]
                 executionLog.write(' '.join(data) + '\n')
 
     def rwbaseGetParent(self):
@@ -239,6 +225,6 @@ class RandomAccessExecuter(Evaluator):
         with open(self.logFile, 'w+') as executionLog:
             for number, ref in selectedRevisions:
                 start, end, status = requestMethod(query[self.store].format(limit=limit, revision=str(ref), graph=self.graph), ref)
-                data = [str(number), str(ref), str(end - start), str(start), str(end), str(status)]
+                data = [str(number), '"{}"'.format(str(ref)), str(end.timestamp()-start.timestamp()), str(start), str(end), str(status)]
                 print(', '.join(data))
                 executionLog.write(' '.join(data) + '\n')

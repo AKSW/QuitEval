@@ -61,7 +61,12 @@ class RandomAccessExecution(Execution):
 
         self.logger.debug("Start QueryLogExecuter for {}".format(
             self.store))
-        ql.run()
+
+        if self.store == 'rawbase':
+            requestMethod = ql.rawbaseUpdateRequest
+        else:
+            requestMethod = ql.postRequest
+        ql.run(requestMethod)
 
 
     def runRandomAccess(self):
