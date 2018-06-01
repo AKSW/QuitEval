@@ -106,16 +106,20 @@ class QueryLogExecuter(Evaluator):
             number = 0
             for query_type, query in self.queries:
                 number += 1
-                start, end, status = requestMethod(query)
-                execTime = str(end.timestamp()-start.timestamp())
-                execTimeInsert = "NaN"
-                execTimeDelete = "NaN"
-                if query_type == "insert":
-                    execTimeInsert = execTime
-                if query_type == "delete":
-                    execTimeDelete = execTime
-                data = [str(number), execTimeInsert, execTimeDelete, str(start), str(end), str(status)]
-                executionLog.write(' '.join(data) + '\n')
+                try:
+                    start, end, status = requestMethod(query)
+                    execTime = str(end.timestamp()-start.timestamp())
+                    execTimeInsert = "NaN"
+                    execTimeDelete = "NaN"
+                    if query_type == "insert":
+                        execTimeInsert = execTime
+                    if query_type == "delete":
+                        execTimeDelete = execTime
+                    data = [str(number), execTimeInsert, execTimeDelete, str(start), str(end), str(status)]
+                    executionLog.write(' '.join(data) + '\n')
+                except requests.exceptions.ConnectionError as error:
+                    print(error)
+                    break
 
     def rwbaseGetParent(self):
         query = "prefix prov: <http://www.w3.org/ns/prov#> select ?entity where {graph <urn:rawbase:provenance> {?entity a prov:Entity. ?activity prov:generated ?entity ; prov:atTime ?time}} order by desc(?time) limit 1"

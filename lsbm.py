@@ -44,6 +44,8 @@ class lsbm:
                     self.queryList.append(("delete", self.prepareInsert()))
             except ValueError as e:
                 pass
+            if len(self.queryList)%100 == 0:
+                print("querylist: {}, toInsert: {}, toDelete: {}".format(str(len(self.queryList))), str(len(self.toInsert)), str(len(self.toDelete)))
             if len(self.toInsert) < 1 and len(self.toDelete) < 1:
                 print("all done")
                 break
