@@ -96,7 +96,7 @@ class QueryLogExecuter(Evaluator):
     def initQueryLog(self):
 
         from lsbm import lsbm
-        lsbm_instance = lsbm("http://example.org/", "urn:bsbm", self.store, self.maxTriplesPerQuery)
+        lsbm_instance = lsbm("urn:bsbm", self.store, self.maxTriplesPerQuery)
         lsbm_instance.prepare(self.triples, self.queryLog, self.queryLogSeed)
 
         self.queries = lsbm_instance.queryList

@@ -13,13 +13,14 @@ class lsbm:
         'r43ples': 'USER "radtke" MESSAGE "RASBM" {query_type} {{GRAPH <{graph}> REVISION "master" {{{body}}}}}',
         'rawbase': '{query_type} {{ {body} }}'}
 
-    def __init__(self, baseUri, defaultGraph, store, maxTriplesPerQuery):
-        self.baseUri = baseUri
+    def __init__(self, defaultGraph, store, maxTriplesPerQuery):
         self.defaultGraph = defaultGraph
         self.store = store
         self.maxTriplesPerQuery = maxTriplesPerQuery
+        self.stats = []
 
     def prepare(self, numberOfStatements, queryLog, randSeed='default'):
+        # https://stackoverflow.com/questions/11526975/set-random-seed-programwide-in-python#11527011
         seed(randSeed)
         self.toInsert = []
         with open(queryLog, 'r') as f:
@@ -36,20 +37,21 @@ class lsbm:
     def prepareQueryList(self):
         self.queryList = []
         while True:
-            direction = randint(0, 3)
+            direction = randint(0, 1)
             try:
                 if direction == 0:
                     self.queryList.append(("insert", self.prepareDelete()))
                 else:
                     self.queryList.append(("delete", self.prepareInsert()))
+                self.stats.append((len(self.queryList), len(self.toDelete)))
+                if len(self.queryList)%100 == 0:
+                    print("querylist: {}, toInsert: {}, toDelete: {}".format(
+                        str(len(self.queryList)), str(len(self.toInsert)), str(len(self.toDelete))))
+                if len(self.toInsert) < 1 and len(self.toDelete) < 1:
+                    print("all done")
+                    break
             except ValueError as e:
                 pass
-            if len(self.queryList)%100 == 0:
-                print("querylist: {}, toInsert: {}, toDelete: {}".format(
-                    str(len(self.queryList)), str(len(self.toInsert)), str(len(self.toDelete))))
-            if len(self.toInsert) < 1 and len(self.toDelete) < 1:
-                print("all done")
-                break
         print("done prepare query list")
 
     def removeListFromList(self, orig, remove):
@@ -112,7 +114,7 @@ if __name__ == '__main__':
     parser.add_argument(
         '-s',
         '--seed',
-        type=int,
+        type=str,
         default='0',
         help='The seed for the random generator')
     parser.add_argument(
@@ -133,17 +135,22 @@ if __name__ == '__main__':
         default=None,
         help='The Virtuoso SPARQL Endpoint of R&Wbase')
     parser.add_argument(
-        '-b',
-        '--baseUri',
-        type=str,
-        default="http://example.org/",
-        help='The base URI for the test resources')
-    parser.add_argument(
         '-d',
         '--defaultGraph',
         type=str,
         default=None,
         help='The default graphs URI for the test (default None)')
+    parser.add_argument(
+        '-st',
+        '--storeType',
+        type=str,
+        default="quit",
+        help='The type of store, for which the querylog should be created. (quit (*), rawbase, r43ples)')
+    parser.add_argument(
+        '--maxTriplesPerQuery',
+        type=int,
+        default=300,
+        help='The maximal number of tripels added or deleted in a single query.')
     parser.add_argument(
         '-q',
         '--queryLog',
@@ -153,15 +160,17 @@ if __name__ == '__main__':
         '-n',
         '--numberOfStatements',
         type=int,
-        default='10',
-        help='The of resources to generate')
+        default='100000',
+        help='The total numer of statements to insert and delete with the querylog')
     args = parser.parse_args(sys.argv[1:])
     print('Args', args)
 
-    # https://stackoverflow.com/questions/11526975/set-random-seed-programwide-in-python#11527011
-
-    lsbm = lsbm(args.baseUri, args.defaultGraph)
+    lsbm_instance = lsbm(args.defaultGraph, args.storeType, args.maxTriplesPerQuery)
     #lsbm.rwbaseGetParent()
 
-    lsbm.prepare(args.numberOfStatements, args.queryLog, args.seed)
-    lsbm.run(args.endpoint, args.endpointType, args.rwb_virtuoso)
+    lsbm_instance.prepare(args.numberOfStatements, args.queryLog, args.seed)
+    # lsbm.run(args.endpoint, args.endpointType, args.rwb_virtuoso)
+    revision = 0
+    for revision, stat in lsbm_instance.stats:
+        # revision += 1
+        print("{}: {}".format(str(revision), str(stat)))
